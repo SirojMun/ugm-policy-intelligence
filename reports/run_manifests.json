@@ -1,0 +1,443 @@
+[
+  {
+    "config_id": "B0",
+    "seed": 101,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.2273,
+      "correctness": 0.2294,
+      "evidence_recall": 0.2273,
+      "citation_precision": 0.2273,
+      "temporal_accuracy": 0.2273,
+      "groundedness": 0.2273,
+      "unsupported_claim_rate": 1.0,
+      "false_refusal": 0.7727,
+      "false_confident": 0.0,
+      "total_tokens_est": 82.8727,
+      "n": 110,
+      "avg_latency_ms": 0.04,
+      "p95_latency_ms": 0.07
+    }
+  },
+  {
+    "config_id": "B0",
+    "seed": 202,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.2273,
+      "correctness": 0.2294,
+      "evidence_recall": 0.2273,
+      "citation_precision": 0.2273,
+      "temporal_accuracy": 0.2273,
+      "groundedness": 0.2273,
+      "unsupported_claim_rate": 1.0,
+      "false_refusal": 0.7727,
+      "false_confident": 0.0,
+      "total_tokens_est": 82.8727,
+      "n": 110,
+      "avg_latency_ms": 0.04,
+      "p95_latency_ms": 0.07
+    }
+  },
+  {
+    "config_id": "B0",
+    "seed": 303,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.2273,
+      "correctness": 0.2294,
+      "evidence_recall": 0.2273,
+      "citation_precision": 0.2273,
+      "temporal_accuracy": 0.2273,
+      "groundedness": 0.2273,
+      "unsupported_claim_rate": 1.0,
+      "false_refusal": 0.7727,
+      "false_confident": 0.0,
+      "total_tokens_est": 82.8727,
+      "n": 110,
+      "avg_latency_ms": 0.03,
+      "p95_latency_ms": 0.04
+    }
+  },
+  {
+    "config_id": "B1",
+    "seed": 101,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.2273,
+      "correctness": 0.2365,
+      "evidence_recall": 0.2273,
+      "citation_precision": 0.2273,
+      "temporal_accuracy": 0.2273,
+      "groundedness": 0.2273,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.7727,
+      "false_confident": 0.0,
+      "total_tokens_est": 423.8727,
+      "n": 110,
+      "avg_latency_ms": 0.06,
+      "p95_latency_ms": 0.08
+    }
+  },
+  {
+    "config_id": "B1",
+    "seed": 202,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.2273,
+      "correctness": 0.2365,
+      "evidence_recall": 0.2273,
+      "citation_precision": 0.2273,
+      "temporal_accuracy": 0.2273,
+      "groundedness": 0.2273,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.7727,
+      "false_confident": 0.0,
+      "total_tokens_est": 423.8727,
+      "n": 110,
+      "avg_latency_ms": 0.06,
+      "p95_latency_ms": 0.13
+    }
+  },
+  {
+    "config_id": "B1",
+    "seed": 303,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.2273,
+      "correctness": 0.2365,
+      "evidence_recall": 0.2273,
+      "citation_precision": 0.2273,
+      "temporal_accuracy": 0.2273,
+      "groundedness": 0.2273,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.7727,
+      "false_confident": 0.0,
+      "total_tokens_est": 423.8727,
+      "n": 110,
+      "avg_latency_ms": 0.06,
+      "p95_latency_ms": 0.09
+    }
+  },
+  {
+    "config_id": "B2",
+    "seed": 101,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.7727,
+      "correctness": 0.6011,
+      "evidence_recall": 0.6136,
+      "citation_precision": 0.3656,
+      "temporal_accuracy": 0.7182,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.2273,
+      "total_tokens_est": 2198.8545,
+      "n": 110,
+      "avg_latency_ms": 23.51,
+      "p95_latency_ms": 29.78
+    }
+  },
+  {
+    "config_id": "B2",
+    "seed": 202,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.7727,
+      "correctness": 0.6011,
+      "evidence_recall": 0.6136,
+      "citation_precision": 0.3656,
+      "temporal_accuracy": 0.7182,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.2273,
+      "total_tokens_est": 2198.8545,
+      "n": 110,
+      "avg_latency_ms": 25.34,
+      "p95_latency_ms": 35.08
+    }
+  },
+  {
+    "config_id": "B2",
+    "seed": 303,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.7727,
+      "correctness": 0.6011,
+      "evidence_recall": 0.6136,
+      "citation_precision": 0.3656,
+      "temporal_accuracy": 0.7182,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.2273,
+      "total_tokens_est": 2198.8545,
+      "n": 110,
+      "avg_latency_ms": 24.73,
+      "p95_latency_ms": 32.41
+    }
+  },
+  {
+    "config_id": "B3",
+    "seed": 101,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.7727,
+      "correctness": 0.6127,
+      "evidence_recall": 0.6455,
+      "citation_precision": 0.5556,
+      "temporal_accuracy": 0.7636,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.2273,
+      "total_tokens_est": 1652.8727,
+      "n": 110,
+      "avg_latency_ms": 227.37,
+      "p95_latency_ms": 457.37
+    }
+  },
+  {
+    "config_id": "B3",
+    "seed": 202,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.7727,
+      "correctness": 0.6127,
+      "evidence_recall": 0.6455,
+      "citation_precision": 0.5556,
+      "temporal_accuracy": 0.7636,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.2273,
+      "total_tokens_est": 1652.8727,
+      "n": 110,
+      "avg_latency_ms": 225.64,
+      "p95_latency_ms": 457.29
+    }
+  },
+  {
+    "config_id": "B3",
+    "seed": 303,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.7727,
+      "correctness": 0.6127,
+      "evidence_recall": 0.6455,
+      "citation_precision": 0.5556,
+      "temporal_accuracy": 0.7636,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.2273,
+      "total_tokens_est": 1652.8727,
+      "n": 110,
+      "avg_latency_ms": 227.47,
+      "p95_latency_ms": 458.89
+    }
+  },
+  {
+    "config_id": "B4",
+    "seed": 101,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.9182,
+      "correctness": 0.7691,
+      "evidence_recall": 0.8364,
+      "citation_precision": 0.7162,
+      "temporal_accuracy": 0.9091,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.0818,
+      "total_tokens_est": 1362.7636,
+      "n": 110,
+      "avg_latency_ms": 354.56,
+      "p95_latency_ms": 830.84
+    }
+  },
+  {
+    "config_id": "B4",
+    "seed": 202,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.9182,
+      "correctness": 0.7691,
+      "evidence_recall": 0.8364,
+      "citation_precision": 0.7162,
+      "temporal_accuracy": 0.9091,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.0818,
+      "total_tokens_est": 1362.7636,
+      "n": 110,
+      "avg_latency_ms": 554.95,
+      "p95_latency_ms": 1113.59
+    }
+  },
+  {
+    "config_id": "B4",
+    "seed": 303,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.9182,
+      "correctness": 0.7691,
+      "evidence_recall": 0.8364,
+      "citation_precision": 0.7162,
+      "temporal_accuracy": 0.9091,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.0818,
+      "total_tokens_est": 1362.7636,
+      "n": 110,
+      "avg_latency_ms": 378.29,
+      "p95_latency_ms": 834.26
+    }
+  },
+  {
+    "config_id": "B5",
+    "seed": 101,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)+qlora-train-v1",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.9182,
+      "correctness": 0.7691,
+      "evidence_recall": 0.8364,
+      "citation_precision": 0.7162,
+      "temporal_accuracy": 0.9091,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.0818,
+      "total_tokens_est": 1364.4727,
+      "n": 110,
+      "avg_latency_ms": 340.12,
+      "p95_latency_ms": 768.0
+    }
+  },
+  {
+    "config_id": "B5",
+    "seed": 202,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)+qlora-train-v1",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.9182,
+      "correctness": 0.7691,
+      "evidence_recall": 0.8364,
+      "citation_precision": 0.7162,
+      "temporal_accuracy": 0.9091,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.0818,
+      "total_tokens_est": 1364.4727,
+      "n": 110,
+      "avg_latency_ms": 318.28,
+      "p95_latency_ms": 678.91
+    }
+  },
+  {
+    "config_id": "B5",
+    "seed": 303,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)+qlora-train-v1",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.9182,
+      "correctness": 0.7691,
+      "evidence_recall": 0.8364,
+      "citation_precision": 0.7162,
+      "temporal_accuracy": 0.9091,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.0818,
+      "total_tokens_est": 1364.4727,
+      "n": 110,
+      "avg_latency_ms": 310.47,
+      "p95_latency_ms": 668.67
+    }
+  },
+  {
+    "config_id": "B6",
+    "seed": 101,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)+qlora-train-v1",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.9182,
+      "correctness": 0.7665,
+      "evidence_recall": 0.8273,
+      "citation_precision": 0.7268,
+      "temporal_accuracy": 0.9091,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.0818,
+      "total_tokens_est": 1372.0909,
+      "n": 110,
+      "avg_latency_ms": 277.67,
+      "p95_latency_ms": 522.29
+    }
+  },
+  {
+    "config_id": "B6",
+    "seed": 202,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)+qlora-train-v1",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.9182,
+      "correctness": 0.7665,
+      "evidence_recall": 0.8273,
+      "citation_precision": 0.7268,
+      "temporal_accuracy": 0.9091,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.0818,
+      "total_tokens_est": 1372.0909,
+      "n": 110,
+      "avg_latency_ms": 269.84,
+      "p95_latency_ms": 447.84
+    }
+  },
+  {
+    "config_id": "B6",
+    "seed": 303,
+    "model_id": "Qwen/Qwen2.5-1.5B-Instruct(cpu-extractive-sim)+qlora-train-v1",
+    "index_version": "ugm-v1-422docs",
+    "metrics": {
+      "verdict_correct": 0.9182,
+      "correctness": 0.7665,
+      "evidence_recall": 0.8273,
+      "citation_precision": 0.7268,
+      "temporal_accuracy": 0.9091,
+      "groundedness": 1.0,
+      "unsupported_claim_rate": 0.0,
+      "false_refusal": 0.0,
+      "false_confident": 0.0818,
+      "total_tokens_est": 1372.0909,
+      "n": 110,
+      "avg_latency_ms": 263.31,
+      "p95_latency_ms": 422.62
+    }
+  }
+]

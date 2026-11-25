@@ -1,0 +1,24 @@
+# Python & Virtualenv
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+build/
+
+# Heavy raw binaries & temporary Kaggle staging artifacts
+data/raw_pdfs/
+dist/
+models/
+*.zip
+
+# Large raw per-query dumps (keep summary JSON metrics tracked)
+reports*/b0_b6_raw_outputs.jsonl
+
+# Runtime logs & OS junk
+data/logs/runtime_traces.jsonl
+*.log
+.DS_Store
+Thumbs.db
+.env

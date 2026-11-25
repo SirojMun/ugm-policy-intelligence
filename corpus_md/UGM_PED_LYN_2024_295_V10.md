@@ -1,0 +1,67 @@
+# 2. Panduan mengenai Gender Equality
+
+Guidance for applicants Gender Equality Statements December 2023 Contents Background • Legal and normative framework, gender equality and sustainable development, definition of gender equality, gender equality and international development, examples of gender considerations in research and innovation, why intersectionality matters Gender Equality Statements • Requirements for applicants, five criteria Writing a Gender Equality Statement • Have you considered gender equality, common pitfalls, tips for writing your statement Assessment Process • Gender Equality Statement Assessment process, further resources Background Legal and normative framework In 2014, the UK parliament amended the International Development Act 2002 to introduce the promotion of gender equality in the provision of Official Development Assistance (ODA). The International Development (Gender Equality) Act 2014 states:
+“the desirability of providing development assistance that is likely to contribute to reducing poverty in a way which is likely to contribute to reducing inequality between persons of different gender.” Gender Equality Act 2014, https://www.legislation.gov.uk/ukpga/2014/9/introduction/enacted The British Council ensures that all projects funded through ODA are compliant with the International Development Act.
+No Sustainable Development without Gender Equality The United Nation’s Sustainable Development Goals (SDGs) cannot be fulfilled without Gender Equality. Gender Equality and the empowerment of women and girls is crucial to address poverty reduction, economic development and welfare of developing countries.
+Gender Equality (Goal 5) is a stand-alone goal, but it is also part of the other 16 SDGs.
+.
+What is Gender and Gender Equality?
+Gender: A social and cultural construct, which distinguishes differences in the attributes of men and women, girls and boys, and accordingly refers to the roles and responsibilities of men and women. Genderbased roles and other attributes, therefore, change over time and vary with different cultural contexts. The concept of gender includes the expectations held about the characteristics, aptitudes and likely behaviours of both women and men (femininity and masculinity). This concept is useful in analysing how commonly shared practices legitimize discrepancies between sexes.
+Gender equality: The concept that women and men, girls and boys have equal conditions, treatment and opportunities for realizing their full potential, human rights and dignity, and for contributing to (and benefitting from) economic, social, cultural and political development. Gender equality is, therefore, the equal valuing by society of the similarities and the differences of men and women, and the roles they play. It is based on women and men being full partners in the home, community and society. Equality does not mean that women and men will become the same but that women’s and men’s rights, responsibilities and opportunities will not depend on whether they are born male or female.
+UNICEF (2017):Gender Equality. Glossary of Terms and Concepts, https://www.unicef.org/rosa/media/1761/file/Gender%20glossary%20of%20terms%20and%20concepts%20.pdf) The importance of Gender Equality in Research and Innovation for International Development • If relevant gender issues are missed or poorly addressed, research and innovation outputs may be potentially biased with negative impacts on gender equality.
+• Excellence in research and innovation requires a gender responsive component.
+• Equal opportunities attract diverse and top-level researchers/innovators which improve team performance and delivery.
+• A consideration of gender equality can contribute to higher quality, impactful, practical and sustainable research/innovation.
+• Socially and culturally responsive research/innovation is inclusive.
+• The inclusion of formerly absent new gendered research questions adds novelty.
+• Gender sensitivity enhances the societal relevance of the knowledge outputs and sharing, technologies and innovations, and contributes to the creation of outputs, goods and services better suited to potential markets and beneficiaries.
+BEIS (2021), Gender Equality in Research and Innovation Official Development Assistance (ODA), https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/989934/research-innovation-odagender-equality.pdf Why intersectionality matters Use Cntrl+Click on picture to play video or copy the following link into your browser https://youtu.be/U4eRb1NM21A (connects to external website), Source: TU Wien Intersectionality:
+”The interconnected nature of social categorisations such as race, class, and gender as they apply to a given individual or group, regarded as creating overlapping and interdependent systems of discrimination or disadvantage.”
+Oxford Dictionary Examples of Gender Considerations in Research and Innovation • Climate Change and community adaptation (Africa): Research shows that climate change tends to exacerbate existing gender inequalities and that this can lead to women facing larger negative impacts than men.
+Understanding the risks and impacts of climate change on people of different gender is therefore key in achieving effective community adaption. For example, it is important to ensure that women can participate in all decision making related to climate change at all levels to build effective policies and practices. (Source: Adaptation and beyond. Lessons learnt from the Community Based Adaptation in Africa (CBAA):
+https://assets.publishing.service.gov.uk/media/57a08adf40f0b6497400080a/Adaptationandbeyond04small.pdf) • Urban Planning: Care-related commutes addressing the needs of others, or performing more general household-related duties, are still predominantly undertaken by women. Moreover, they differ significantly in nature from journeys that urban transport is often designed around, such as commuting to work.
+• Agriculture (Fishing): Gender-related cultural and religious expectations prohibit women in rural Bangladesh from harvesting fish even from their own ponds. Such tasks are seen as the responsibility of men. Women are also reluctant to enter ponds because of the risk of drowning. To support women’s access to fishing, gill nets were introduced which were smaller in size, did not require them to step into the pond, did not require support from men, and was also something they could make at home – thus contributing to food security for both men and women.
+Example 2 and 3: Schiebinger, L., Klinge, I., Sánchez de Madariaga, I., Paik, H. Y., Schraudner, M., and Stefanick, M. (Eds.) (2011-2021).
+Gendered Innovations in Science, Health & Medicine, Engineering and Environment.
+Examples of Gender Considerations in Research and Innovation • Assistive Technology: While elderly women and men often have similar needs, understanding how sex and gender interact to impact aging can assist engineers in developing technologies that best fit user needs.
+Studies show that sex and gender interact to impact health in old age.
+• Water infrastructure: Because water procurement is often women’s work in Sub-Saharan Africa, many women have detailed knowledge of soils and their water yields. This knowledge is vital to civil engineering and development projects—for instance, in determining where to place wells and water taps.
+Examples 1 and 2 Schiebinger, L., Klinge, I., Sánchez de Madariaga, I., Paik, H. Y., Schraudner, M., and Stefanick, M. (Eds.) (2011-2021).
+Gendered Innovations in Science, Health & Medicine, Engineering and Environment.
+• Artificial Intelligence Technology: Machine learning algorithms could result in and/or amplify existing gender bias if the data on which the models were trained discriminates against one gender. An example is an automated resume screening system that discriminates against women because the training data was collected from the resumes of all male employees.
+Wood, Tracy, Dangers of AI-based resume screening, 3 Jul 2023, LinkedIn Gender Equality Statements Gender Equality Statements (GES) All applicants are expected to submit a GES as part of their grant application.
+ Applicants must outline how they have taken meaningful yet proportionate consideration as to how their proposed project will contribute to reducing gender inequalities, as required under the International Development (Gender Equality) Act 2014.
+ Proportionate and meaningful means that applicants should think of gender and potential gender issues in a way which corresponds in size, scale and impact of their project. Their answers should have meaning and be serious, important and/or worthwhile.
+ The GES should be about the project specifically – the outputs and outcomes, the makeup of the project team, participants, stakeholders and beneficiaries of the project, and the processes followed throughout the research programme.
+ Applicants will have to address each criterion explained in the next slide individually on the application form.
+ The British Council reserves the right to reject a proposal where the GES has not been sufficiently considered.
+Five Criteria Applicants are required to address the following five criteria:
+1. Have measures been put in place to ensure equal and meaningful opportunities for people of different genders to be involved throughout the project? This includes the development of the project, the participants of the research and innovation and the beneficiaries of the research and innovation.
+2. The expected impact of the project (benefits and losses) on people of different genders, both throughout the project and beyond.
+3. The impact on the relations between people of different genders and people of the same gender.
+For example, changing roles and responsibilities in households, society, economy, politics, power, etc.
+4. How will any risks and unintended negative consequences on gender equality be avoided or mitigated against, and monitored?
+5. Are there any relevant outcomes and outputs being measured, with data disaggregated by age and gender (where disclosed)?
+Writing a Gender Equality Statement Have you considered gender equality?
+Source: UKRI (2019): Gender equality and international development research and innovation: https://www.ukri.org/wpcontent/uploads/2021/02/UKRI-250221-Gender-equality-and-international-development-research-and-innovation.pdf Common pitfalls Statement is incomplete: not all five criteria have been addressed in a meaningful yet proportionate way. If a question is not applicable, applicants must explain why. An application will be ineligible if no justification is provided.
+Too general: comments about EDI and/ or gender in general. Not providing specific information about the project. Text copied from the Institution’s policy is not sufficient. If applicants state the policy, we would expect details on how it will be implemented as part of the project.
+Not considering the short and long-term impact that the project could have on gender.
+Insufficient answers such as N/A or yes/no.
+Tips for writing a GES • Start writing your statement early.
+• Analyse the gender implication of your project. For example:
+– Do you know about the gender issues in your field?
+– Are you aware of the roles and responsibilities of people of different genders especially in the target country?
+– What are the short and long-term implications of your work?
+– Have you considered the views of different stakeholders in the target country?
+– Will your outputs be accessible to people of different genders? If so, how?
+– What are the roles of people in the project team? How will people be involved?
+Don’t forget to consider aspects of intersectionality in the context of your project If you are unsure, you may wish to speak to your Institution’s EDI team or Research Office for support.
+Assessment process G.E.S. assessment process for grant applications Stage 1:
+Eligibility checks by the British Council
+• Have applicants addressed the outlined criteria?
+• Have applicants addressed the criteria in a way which is meaningful and proportionate?
+• If they have not, have they provided justification?
+Stage 2: Expert reviewer panel Not addressed: The proposal does not include any specific measure to reduce gender inequality or for people of different genders to be involved in the project. (Insufficient and not eligible for funding) Good: Proposals address due diligence, risks, basic needs, and vulnerabilities of persons of different genders.(Sufficient) Excellent: Programmes/projects build assets, capabilities, and opportunities for persons of different genders.
+Transformative: Programmes/projects address unequal power relations and seek systemic institutional, legal, and societal changes.
+Further Resources • The British Council: Our approach to tackling gender inequalities, • UK Research and Innovation (UKRI): Equality, diversity and inclusion, https://www.ukri.org/aboutus/policies-standards-and-data/good-research-resource-hub/equality-diversity-and-inclusion/ • Gender Impact Platform: SciDevNet free on-line course- Integrate gender into your scientific research • GenderEd, University of Edinburgh, Improving Academic Research with a Gender Sensitive Approach • Department for Business, Energy and Industrial Strategy (2021): Gender Equality in Research and Innovation Official Development Assistance (ODA), Questions?
+Contact the International Science Partnerships team at UK-ISPF@britishcouncil.org

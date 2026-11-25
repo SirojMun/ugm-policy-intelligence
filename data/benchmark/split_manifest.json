@@ -1,0 +1,45 @@
+{
+  "seed": 42,
+  "counts_by_split": {
+    "train": 60,
+    "dev": 30,
+    "test": 110
+  },
+  "counts_by_slice": {
+    "train": {
+      "easy": 20,
+      "multi-hop": 15,
+      "conflict": 10,
+      "no-evidence": 15
+    },
+    "dev": {
+      "easy": 10,
+      "multi-hop": 7,
+      "conflict": 5,
+      "no-evidence": 8
+    },
+    "test": {
+      "easy": 35,
+      "multi-hop": 30,
+      "conflict": 20,
+      "no-evidence": 25
+    }
+  },
+  "total_qrels": 239,
+  "files_sha256": {
+    "train.jsonl": "9ecf3bd59ebca2aee527d1f7ad1962f4c67f157ad5185a455291181ef7cc1648",
+    "dev.jsonl": "20f0d42d15c70dad0877c0e941eeadb8de2c32dd5d7eee53b5d6a75d3d13a0df",
+    "test_locked.jsonl": "bde3328d48f6efb54dd682c853c6e29eb7ad42fe38591a2eabd4660ac4ff7d43",
+    "test_inputs_blind.jsonl": "88b126be99c692f983ba4408b12ed4616f844e308c97380e95aa8346dcff9205",
+    "qrels.jsonl": "e41eebcf4462aaad864491e0712b2a25f7e4c6c8ca012d7b803a6c5da1675215",
+    "qrels.tsv": "aef3c7ea4bde82a6307bf3af6558c01b3ce6ea4999bbe9d9f94ac770f58144de"
+  },
+  "leakage_and_dedup_check": {
+    "total_queries": 200,
+    "exact_duplicate_count": 0,
+    "cross_split_near_dup_count": 0,
+    "near_dup_threshold": 0.72,
+    "near_dups_sample": [],
+    "leakage_free": true
+  }
+}

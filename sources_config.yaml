@@ -1,0 +1,332 @@
+# Configuration for UGM Academic Policy Intelligence Web Scraping & Extraction Pipeline
+# Reproducible settings for 01_crawl_metadata.py, 02_download_and_hash.py, and 03_extract_and_filter.py
+
+project:
+  name: "UGM Academic Policy Intelligence Corpus"
+  usage_rights: "Public Academic Regulation - UGM"
+  target_year_min: 2018
+  target_year_max: 2026
+  # Target 350-450+ PDFs downloaded so clean corpus stays safely >= 300 after dedup & scanned-PDF filtering
+  target_max_candidates: 580
+
+http:
+  user_agent: "UGMPolicyResearchBot/1.0 (+https://ugm.ac.id; Academic NLP/IR Corpus Research; rate-limited)"
+  min_delay_sec: 1.5
+  max_delay_sec: 3.0
+  timeout_sec: 25
+  max_retries: 3
+  backoff_base_sec: 2.0
+  max_pdf_mb: 20
+  # Allow fallback to verify=False ONLY for explicitly flagged .ac.id hosts with expired/broken chain
+  allow_insecure_ssl_fallback: true
+  insecure_ssl_hosts:
+    - "sa.ugm.ac.id"
+    - "senatakademik.ugm.ac.id"
+    - "jdihn.go.id"
+
+paths:
+  output_dir: "data"
+  raw_pdfs_dir: "data/raw_pdfs"
+  corpus_md_dir: "corpus_md"
+  metadata_dir: "data/metadata"
+  logs_dir: "data/logs"
+  catalog_raw: "data/metadata/catalog_raw.jsonl"
+  catalog_filtered: "data/metadata/catalog_filtered.jsonl"
+  source_register_jsonl: "source_register.jsonl"
+  source_register_csv: "source_register.csv"
+  corpus_clean_jsonl: "corpus_clean.jsonl"
+  skipped_filter_csv: "data/logs/skipped_filter.csv"
+  download_errors_csv: "data/logs/download_errors.csv"
+  skipped_scanned_csv: "skipped_scanned_pdfs.csv"
+  flagged_pii_csv: "data/logs/flagged_pii_docs.csv"
+  deduplicated_csv: "data/logs/deduplicated.csv"
+  corpus_stats_json: "data/corpus_stats.json"
+
+filtering:
+  min_chars_per_page: 200
+  # Require policy-related signal for broad WP media repositories (like ditmawa/pasca/penelitian/ppid)
+  policy_include_keywords:
+    - "peraturan"
+    - "pedoman"
+    - "panduan"
+    - "keputusan"
+    - "keptor"
+    - "statuta"
+    - "tata tertib"
+    - "tata-tertib"
+    - "tata_tertib"
+    - "kode etik"
+    - "kode-etik"
+    - "kode_etik"
+    - "kebijakan"
+    - "standar mutu"
+    - "standar-mutu"
+    - "standar_"
+    - "kalender akademik"
+    - "kalender-akademik"
+    - "kalender_akademik"
+    - "kurikulum"
+    - "sop"
+    - "pos-"
+    - "pos_"
+    - "juknis"
+    - "petunjuk teknis"
+    - "petunjuk-teknis"
+    - "rencana strategis"
+    - "renstra"
+    - "rencana induk"
+    - "permwa"
+    - "per-mwa"
+    - "sk-sa"
+    - "sk sa"
+    - "sk rektor"
+    - "sk-rektor"
+    - "ukt"
+    - "ipi"
+    - "rekognisi pembelajaran lampau"
+    - "rpl"
+    - "kekerasan seksual"
+    - "mkwk"
+    - "kearsipan"
+    - "jadwal retensi"
+    - "tata naskah"
+
+  # Mandatory exclusion: routine non-policy SKs and PII-risk documents
+  exclude_keywords:
+    - "panitia"
+    - "kepanitiaan"
+    - "tim kerja"
+    - "tim pelaksana"
+    - "tim pengelola"
+    - "tim penyusun"
+    - "tim penilai"
+    - "tim seleksi"
+    - "penugasan"
+    - "pengangkatan anggota"
+    - "pemberhentian"
+    - "penerima beasiswa"
+    - "daftar penerima"
+    - "penerima tunjangan"
+    - "penerima bantuan"
+    - "penerima hibah"
+    - "penerima insentif"
+    - "pemenang"
+    - "lolos seleksi"
+    - "hasil seleksi"
+    - "seleksi administrasi"
+    - "seleksi akhir"
+    - "lowongan"
+    - "paruh waktu"
+    - "rekruitmen"
+    - "rekrutmen"
+    - "kwitansi"
+    - "sppd"
+    - "perjalanan dinas"
+    - "honorarium"
+    - "penghapusan barang milik"
+    - "berita acara"
+    - "kontrak pengadaan"
+    - "laporan pelaksanaan pekerjaan"
+    - "daftar hadir"
+    - "absensi"
+    - "daftar nama"
+    - "daftar peserta"
+    - "peserta lolos"
+    - "peserta wisuda"
+    - "jadwal wisuda"
+    - "edaran wisuda"
+    - "daftar hitam"
+    - "sertifikat"
+    - "undangan"
+    - "surat tugas"
+    - "nota dinas"
+    - "rekapitulasi"
+    - "pengumuman heregistrasi"
+    - "draf "
+    - "draf-"
+    - "draft "
+    - "draft-"
+    - "rancangan "
+    - "tetsing"
+    - "testing"
+
+  # SSO / authentication URL indicators to never follow or download
+  sso_indicators:
+    - "sso.ugm.ac.id"
+    - "/ugmfw/signin"
+    - "/spse/signin"
+    - "/wp-login.php"
+    - "accounts.google.com"
+    - "/login"
+    - "/signin"
+
+pii_thresholds:
+  nik_count_flag: 3
+  nip_count_flag: 5
+  nim_count_flag: 5
+  bank_account_count_flag: 2
+  email_count_flag: 10
+
+# Verified public UGM sources ordered by regulatory priority
+sources:
+  # Priority 1: Biro Hukum dan Organisasi UGM (canonical legal catalog)
+  - name: "hukor_peraturan_rektor"
+    type: "hukor_table_page"
+    url: "https://hukor.ugm.ac.id/peraturan-rektor/"
+    default_doc_type: "Peraturan Rektor"
+    require_policy_keyword: false
+    priority: 1
+
+  - name: "hukor_peraturan_mwa"
+    type: "hukor_table_page"
+    url: "https://hukor.ugm.ac.id/peraturan-mwa/"
+    default_doc_type: "Peraturan MWA"
+    require_policy_keyword: false
+    priority: 1
+
+  - name: "hukor_keputusan_rektor"
+    type: "hukor_table_page"
+    url: "https://hukor.ugm.ac.id/daftar-keputusan-rektor/"
+    default_doc_type: "Keputusan Rektor"
+    require_policy_keyword: false
+    priority: 1
+
+  - name: "hukor_sk_yearly"
+    type: "hukor_table_page"
+    urls:
+      - "https://hukor.ugm.ac.id/sk-2024/"
+      - "https://hukor.ugm.ac.id/sk-2023/"
+      - "https://hukor.ugm.ac.id/sk-2022/"
+      - "https://hukor.ugm.ac.id/sk-2021/"
+    default_doc_type: "Keputusan Rektor"
+    require_policy_keyword: false
+    priority: 1
+
+  - name: "hukor_detail_pages"
+    type: "hukor_wp_pages"
+    api_url: "https://hukor.ugm.ac.id/wp-json/wp/v2/pages"
+    sitemap_file_url: "https://hukor.ugm.ac.id/wp-sitemap-posts-file-1.xml"
+    default_doc_type: "Peraturan Rektor"
+    require_policy_keyword: false
+    priority: 1
+
+  # Priority 2: Majelis Wali Amanat (MWA) & Senat Akademik (SA)
+  - name: "mwa_regulations"
+    type: "html_pdf_page"
+    urls:
+      - "https://mwa.ugm.ac.id/peraturan-mwa-2026/"
+      - "https://mwa.ugm.ac.id/halaman-depan/"
+    default_doc_type: "Peraturan MWA"
+    require_policy_keyword: false
+    priority: 1
+
+  - name: "mwa_wp_media"
+    type: "wp_media"
+    base_url: "https://mwa.ugm.ac.id"
+    default_doc_type: "Peraturan MWA"
+    require_policy_keyword: true
+    priority: 1
+
+  - name: "senat_akademik_pages"
+    type: "html_pdf_page"
+    urls:
+      - "https://senatakademik.ugm.ac.id/sk-senat-akademik/"
+      - "https://senatakademik.ugm.ac.id/mwa/"
+      - "https://senatakademik.ugm.ac.id/rektor/"
+      - "https://senatakademik.ugm.ac.id/tata-tertib-anggota-sa/"
+    default_doc_type: "Peraturan Senat Akademik"
+    require_policy_keyword: false
+    priority: 1
+
+  - name: "senat_akademik_wp_media"
+    type: "wp_media"
+    base_url: "https://senatakademik.ugm.ac.id"
+    default_doc_type: "Peraturan Senat Akademik"
+    require_policy_keyword: true
+    priority: 1
+
+  # Priority 3: Direktorat Pendidikan & Pengajaran, Sekolah Pascasarjana, Kemahasiswaan
+  - name: "akademik_pages"
+    type: "html_pdf_page"
+    urls:
+      - "https://akademik.ugm.ac.id/?p=789"
+      - "https://akademik.ugm.ac.id/?p=804"
+      - "https://akademik.ugm.ac.id/?p=817"
+    default_doc_type: "Pedoman Akademik"
+    require_policy_keyword: false
+    priority: 2
+
+  - name: "akademik_wp_media"
+    type: "wp_media"
+    base_url: "https://akademik.ugm.ac.id"
+    default_doc_type: "Pedoman Akademik"
+    require_policy_keyword: true
+    max_pages: 6
+    priority: 2
+
+  - name: "pasca_wp_media"
+    type: "wp_media"
+    base_url: "https://pasca.ugm.ac.id"
+    default_doc_type: "Pedoman Akademik"
+    require_policy_keyword: true
+    max_pages: 6
+    priority: 2
+
+  - name: "ditmawa_wp_media"
+    type: "wp_media"
+    base_url: "https://ditmawa.ugm.ac.id"
+    default_doc_type: "Pedoman Kemahasiswaan"
+    require_policy_keyword: true
+    max_pages: 6
+    priority: 2
+
+  # Priority 4: Direktorat Penelitian, Pengabdian, Arsip, Pengadaan, PPID
+  - name: "penelitian_wp_media"
+    type: "wp_media"
+    base_url: "https://penelitian.ugm.ac.id"
+    default_doc_type: "Pedoman Layanan"
+    require_policy_keyword: true
+    max_pages: 8
+    priority: 3
+
+  - name: "pengabdian_wp_media"
+    type: "wp_media"
+    base_url: "https://pengabdian.ugm.ac.id"
+    default_doc_type: "Pedoman Layanan"
+    require_policy_keyword: true
+    max_pages: 8
+    priority: 3
+
+  - name: "arsip_wp_media"
+    type: "wp_media"
+    base_url: "https://arsip.ugm.ac.id"
+    default_doc_type: "Pedoman Layanan"
+    require_policy_keyword: true
+    max_pages: 4
+    priority: 3
+
+  - name: "p2l_regulasi"
+    type: "html_pdf_page"
+    urls:
+      - "https://p2l.ugm.ac.id/regulasi/"
+    default_doc_type: "Pedoman Layanan"
+    require_policy_keyword: false
+    priority: 3
+
+  - name: "ppid_pages"
+    type: "html_pdf_page"
+    urls:
+      - "https://ppid.ugm.ac.id/profil/regulasi-2/"
+      - "https://ppid.ugm.ac.id/informasi-publik/informasi-wajib-berkala/"
+      - "https://ppid.ugm.ac.id/informasi-publik/informasi-tersedia-setiap-saat/"
+    default_doc_type: "Pedoman Layanan"
+    require_policy_keyword: true
+    priority: 3
+
+  - name: "ppid_wp_media"
+    type: "wp_media"
+    base_url: "https://ppid.ugm.ac.id"
+    default_doc_type: "Pedoman Layanan"
+    require_policy_keyword: true
+    max_pages: 6
+    priority: 4

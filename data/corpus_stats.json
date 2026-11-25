@@ -1,0 +1,38 @@
+{
+  "total_downloaded_registered": 579,
+  "total_clean_corpus": 422,
+  "skipped_scanned_pdfs": 77,
+  "deduplicated_removed": 80,
+  "pii_flagged_for_review": 2,
+  "by_doc_type": {
+    "Keputusan Rektor": 28,
+    "Peraturan MWA": 18,
+    "Keputusan MWA": 3,
+    "Peraturan Rektor": 85,
+    "Keputusan Senat Akademik": 8,
+    "Pedoman Akademik": 75,
+    "Statuta / Eksternal": 7,
+    "Pedoman Kemahasiswaan": 14,
+    "Pedoman Layanan": 184
+  },
+  "by_year": {
+    "2018": 22,
+    "2019": 46,
+    "2020": 37,
+    "2021": 48,
+    "2022": 50,
+    "2023": 72,
+    "2024": 76,
+    "2025": 30,
+    "2026": 32,
+    "Unknown": 9
+  },
+  "by_status": {
+    "Unknown": 390,
+    "Berlaku": 17,
+    "Dicabut": 4,
+    "Diubah": 11
+  },
+  "total_pages": 13530,
+  "total_chars": 20754250
+}
