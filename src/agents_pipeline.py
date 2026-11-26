@@ -761,8 +761,12 @@ class PolicyExperimentRunner:
                     index_version=self.index_version,
                     trace=trace + [TraceSpan(step="claim_verifier", detail="0_supported_abstained")],
                 )
-            # Bounded repair: filter out unsupported claims from final answer
-            repaired_answer = " ".join(c.statement for c in supported_claims)
+            # Bounded repair: filter out unsupported claims only when some claims failed verification
+            repaired_answer = (
+                gen["answer"]
+                if (len(supported_claims) == len(atomic_claims) and gen["answer"].strip())
+                else " ".join(c.statement for c in supported_claims)
+            )
             verdict: Literal["supported", "unknown"] = "supported"
             abstain_reason = ""
             trace.append(TraceSpan(step="claim_verifier", metadata={"supported": len(supported_claims), "total": len(atomic_claims)}))

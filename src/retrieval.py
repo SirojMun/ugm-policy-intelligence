@@ -331,20 +331,35 @@ class PolicyRetrievalIndex:
             return sorted(rescored, key=lambda x: x.score, reverse=True)[:top_k]
 
         # Deterministic CPU lexical+bigram+pasal-mention cross-scorer
-        q_tokens = set(tokenize_id(query))
-        q_bigrams = set(zip(tokenize_id(query), tokenize_id(query)[1:]))
+        ql = query.lower()
+        filler = {"apa", "saja", "yang", "dan", "atau", "dalam", "untuk", "bagaimana", "sebutkan", "jelaskan", "menurut", "ugm"}
+        q_raw_toks = tokenize_id(query)
+        q_tokens = set(t for t in q_raw_toks if t not in filler) or set(q_raw_toks)
+        q_bigrams = set(zip(q_raw_toks, q_raw_toks[1:]))
+        is_list_query = any(k in ql for k in ("apa saja", "sebutkan", "daftar", "meliputi", "jenis", "macam"))
+        mentions_pensiun = any(k in ql for k in ("pensiun", "purna tugas"))
         rescored: list[ScoredChunk] = []
         for rank_idx, item in enumerate(candidates):
             doc_text = f"{item.chunk.title} {item.chunk.section_path} {item.chunk.text[:1800]}"
+            body_l = item.chunk.text.lower()
+            title_l = item.chunk.title.lower()
+            sec_l = item.chunk.section_path.lower()
             d_tokens = tokenize_id(doc_text)
             d_set = set(d_tokens)
+            title_set = set(tokenize_id(title_l))
             d_bigrams = set(zip(d_tokens, d_tokens[1:]))
 
             uni_overlap = len(q_tokens & d_set) / max(1, len(q_tokens))
+            title_overlap = len(q_tokens & title_set) / max(1, len(q_tokens))
             bi_overlap = len(q_bigrams & d_bigrams) / max(1, len(q_bigrams)) if q_bigrams else 0.0
-            pasal_bonus = 0.15 if (item.chunk.pasal and item.chunk.pasal.lower() in query.lower()) else 0.0
+            pasal_bonus = 0.15 if (item.chunk.pasal and item.chunk.pasal.lower() in ql) else 0.0
+            list_bonus = 0.10 if (is_list_query and re.search(r"\b(?:meliputi|terdiri atas)\s*:", body_l)) else 0.0
+            overview_bonus = 0.08 if (is_list_query and re.search(r"\bpasal\s+[123]\b", (item.chunk.pasal or "").lower()) and re.search(r"\b(?:meliputi|terdiri atas)\s*:", body_l)) else 0.0
+            audience_penalty = -0.10 if (not mentions_pensiun and "pensiunan" in sec_l and "dosen tetap" in ql) else (
+                -0.06 if (not mentions_pensiun and "pensiunan" in sec_l and "dosen" in ql) else 0.0
+            )
             rrf_prior = 1.0 / (10.0 + rank_idx)
-            final_score = 0.55 * uni_overlap + 0.30 * bi_overlap + pasal_bonus + 0.15 * rrf_prior
+            final_score = 0.48 * uni_overlap + 0.15 * title_overlap + 0.25 * bi_overlap + pasal_bonus + list_bonus + overview_bonus + audience_penalty + 0.12 * rrf_prior
 
             rescored.append(
                 ScoredChunk(
@@ -370,7 +385,7 @@ class PolicyRetrievalIndex:
         if mode == "hybrid":
             return self.search_hybrid(query, top_k=top_k, filters=filters)
         if mode == "hybrid_rerank":
-            fused = self.search_hybrid(query, top_k=max(top_k * 3, 25), filters=filters)
+            fused = self.search_hybrid(query, top_k=max(top_k * 5, 40), filters=filters)
             return self.rerank(query, fused, top_k=top_k)
         raise ValueError(f"Unsupported retrieval mode: {mode}")
 

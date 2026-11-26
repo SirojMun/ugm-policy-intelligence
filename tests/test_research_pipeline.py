@@ -325,3 +325,38 @@ def test_export_analysis_reports(tmp_path: Path):
     assert (out_dir / "ablation.csv").exists()
     assert (out_dir / "red_team.csv").exists()
     assert (out_dir / "final_report.md").exists()
+
+
+def test_extractive_enumeration_and_dedup():
+    docs = _sample_docs()
+    docs.append(
+        {
+            "doc_id": "UGM_PR_2026_007_DUP",
+            "title": "Peraturan Rektor Nomor 7 Tahun 2026 tentang Fasilitas",
+            "doc_type": "Peraturan Rektor",
+            "year": 2026,
+            "valid_time": "2026-05-29",
+            "status": "Berlaku",
+            "version": "original",
+            "usage_rights": "Public Academic Regulation - UGM",
+            "related_regulations": [],
+            "text": (
+                "# Peraturan Rektor Nomor 7 Tahun 2026\n\n### Pasal 2\n\n"
+                "(1) UGM menyediakan fasilitas bagi dosen tetap.\n"
+                "(2) Fasilitas bagi Dosen Tetap sebagaimana dimaksud pada ayat (1) meliputi:\n"
+                "a. ruangan dan perangkat kerja;\n"
+                "b. teknologi informasi; dan\n"
+                "c. kesehatan.\n"
+            ),
+        }
+    )
+    runner = PolicyExperimentRunner(
+        docs_by_id={d["doc_id"]: d for d in docs},
+        fixed_index=PolicyRetrievalIndex(chunk_corpus(docs, "fixed")),
+        heading_index=PolicyRetrievalIndex(chunk_corpus(docs, "heading_aware")),
+        hierarchical_index=PolicyRetrievalIndex(chunk_corpus(docs, "hierarchical")),
+    )
+    resp = runner.run("B6", "Apa saja fasilitas dosen tetap UGM?")
+    assert resp.verdict == "supported"
+    assert "meliputi:" in resp.answer and "teknologi informasi" in resp.answer
+    assert "Berdasarkan " in resp.answer

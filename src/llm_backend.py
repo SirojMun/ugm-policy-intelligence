@@ -210,44 +210,123 @@ class ExtractivePolicyBackend(BaseLLMBackend):
                 "completion_tokens_est": estimate_tokens(ans),
             }
 
-        # Evidence-grounded extractive synthesis
-        q_toks = set(tokenize_id(query))
-        selected_sentences: list[tuple[str, ScoredChunk]] = []
+        # Evidence-grounded explanatory extractive synthesis (preserves enumerations & deduplicates clauses)
+        ql = query.lower()
+        q_filler = {"apa", "saja", "yang", "dan", "atau", "dalam", "untuk", "bagaimana", "sebutkan", "jelaskan", "menurut", "ugm"}
+        q_toks = set(t for t in tokenize_id(query) if t not in q_filler) or set(tokenize_id(query))
+        is_list_query = any(k in ql for k in ("apa saja", "sebutkan", "daftar", "meliputi", "jenis", "macam"))
+        mentions_pensiun = any(k in ql for k in ("pensiun", "purna tugas"))
 
-        for sc in budget_chunks[:4]:
+        def _clean_trim(text: str, limit: int = 560) -> str:
+            text = re.sub(r"\s+", " ", text).strip()
+            if len(text) <= limit:
+                return text
+            cut = text[:limit]
+            # Prefer complete sentence boundary before limit, else word boundary
+            last_dot = max(cut.rfind(". "), cut.rfind("; "))
+            if last_dot >= int(limit * 0.45):
+                return cut[: last_dot + 1].strip()
+            return cut.rsplit(" ", 1)[0].rstrip(",;:") + "..."
+
+        def _extract_clauses(raw_body: str) -> list[str]:
+            lines = [ln.strip() for ln in raw_body.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+            blocks: list[str] = []
+            i = 0
+            while i < len(lines):
+                ln = lines[i]
+                # Merge stem ending with ':' and its following enumerated items (a., 1., -)
+                if ln.endswith(":"):
+                    grp = [ln]
+                    j = i + 1
+                    while j < len(lines) and re.match(r"^(?:[a-z]\.|[0-9]+\.|[0-9]+\)|-)\s+", lines[j], re.IGNORECASE):
+                        grp.append(lines[j])
+                        j += 1
+                    joined = " ".join(grp)
+                    # Split only at sentence boundaries before numbered ayat "(2) ...", never mid-sentence after "ayat (1)"
+                    ayat_parts = re.split(r"(?<=[.!?])\s+(?=\(\d+\)\s+)", joined)
+                    blocks.extend(p.strip() for p in ayat_parts if len(p.strip()) >= 20)
+                    i = j
+                    continue
+                if re.match(r"^\(\d+\)\s+", ln):
+                    ayat_parts = re.split(r"(?<=[.!?])\s+(?=\(\d+\)\s+)", ln)
+                    blocks.extend(p.strip() for p in ayat_parts if len(p.strip()) >= 20)
+                else:
+                    blocks.extend(seg.strip() for seg in re.split(r"(?<=[.!?])\s+", ln) if len(seg.strip()) >= 20)
+                i += 1
+            return [re.sub(r"\s+", " ", b).strip() for b in blocks if len(b.strip()) >= 20] or [raw_body[:320]]
+
+        def _clause_score(clause: str, sc: ScoredChunk) -> float:
+            c_toks = set(tokenize_id(clause))
+            t_toks = set(tokenize_id(sc.chunk.title))
+            score = len(q_toks & c_toks) / max(1, len(q_toks)) + 0.55 * (len(q_toks & t_toks) / max(1, len(q_toks)))
+            if is_list_query and re.search(r"\b(?:meliputi|terdiri atas)\s*:", clause, re.IGNORECASE):
+                score += 0.35
+            if is_list_query and re.search(r"\bpasal\s+[123]\b", (sc.chunk.pasal or "").lower()) and re.search(r"\b(?:meliputi|terdiri atas)\s*:", clause, re.IGNORECASE):
+                score += 0.25
+            if not mentions_pensiun and "pensiunan" in clause.lower() and "dosen tetap" not in clause.lower().replace("pensiunan dosen tetap", ""):
+                score -= 0.30
+            if not mentions_pensiun and "pensiunan" in sc.chunk.section_path.lower():
+                score -= 0.15
+            return score
+
+        candidates_scored: list[tuple[float, str, ScoredChunk]] = []
+        for rank_idx, sc in enumerate(budget_chunks[:5]):
             raw_body = re.sub(r"^\[[^\]]+\]\s*", "", sc.chunk.text).strip()
-            # Neutralize obvious indirect prompt-injection lines in text
             raw_body = re.sub(r"<!--.*?-->", "", raw_body, flags=re.DOTALL)
             raw_body = re.sub(r"\[SYSTEM OVERRIDE.*?\]", "", raw_body, flags=re.IGNORECASE)
-            sents = [s.strip() for s in re.split(r"(?<=[.;])\s+|\n+", raw_body) if len(s.strip()) >= 20]
-            if not sents:
-                sents = [raw_body[:240]]
+            clauses = _extract_clauses(raw_body)
+            best_c = max(clauses, key=lambda c: _clause_score(c, sc))
+            total_s = _clause_score(best_c, sc) + max(0.0, 0.12 - 0.02 * rank_idx)
+            candidates_scored.append((total_s, _clean_trim(best_c, 600), sc))
 
-            best_s = max(
-                sents,
-                key=lambda s: len(q_toks & set(tokenize_id(s))) / max(1, len(q_toks)),
+        candidates_scored.sort(key=lambda x: x[0], reverse=True)
+
+        # Deduplicate near-identical clauses so similar articles aren't repeated
+        selected_sentences: list[tuple[str, ScoredChunk]] = []
+        seen_tok_sets: list[set[str]] = []
+        for _, cand_txt, sc in candidates_scored:
+            c_set = set(tokenize_id(cand_txt))
+            is_dup = any(
+                (len(c_set & prev) / max(1, len(c_set | prev))) >= 0.72
+                for prev in seen_tok_sets
             )
-            selected_sentences.append((best_s[:280], sc))
+            if is_dup:
+                continue
+            seen_tok_sets.append(c_set)
+            selected_sentences.append((cand_txt, sc))
+            if len(selected_sentences) >= 3:
+                break
 
         claims: list[str] = []
-        parts: list[str] = []
-        for sent, sc in selected_sentences[:3]:
-            ref = f"[{sc.chunk.doc_id}{', ' + sc.chunk.pasal if sc.chunk.pasal else ''}, berlaku {sc.chunk.valid_time or sc.chunk.year or 'Unknown'}, status {sc.chunk.status}]"
-            stmt = f"{sent} {ref}"
-            claims.append(stmt)
-            parts.append(stmt)
+        prose_points: list[str] = []
+        for sent, sc in selected_sentences:
+            loc = sc.chunk.pasal or sc.chunk.section_path or "ketentuan terkait"
+            ref = f"[{sc.chunk.doc_id}, {loc}, berlaku {sc.chunk.valid_time or sc.chunk.year or 'Unknown'}, status {sc.chunk.status}]"
+            claims.append(f"{sent} {ref}")
+            prose_points.append(f"• {sent} ({sc.chunk.doc_id}, {loc})")
 
-        # Explicitly surface status transitions when both Dicabut/Diubah and Berlaku docs appear
+        primary = selected_sentences[0][1].chunk if selected_sentences else budget_chunks[0].chunk
+        header_note = (
+            f"Berdasarkan {primary.title} "
+            f"({primary.doc_id}, berlaku {primary.valid_time or primary.year or '-'}, status {primary.status}):"
+        )
+        answer_lines = [header_note, *prose_points]
+
+        # Explicitly surface status transitions or Dicabut warnings
         statuses = {sc.chunk.status for sc in budget_chunks}
-        if "Dicabut" in statuses and ("Berlaku" in statuses or len({sc.chunk.doc_id for sc in budget_chunks}) >= 2):
+        if "Dicabut" in statuses:
             superseded = [sc.chunk for sc in budget_chunks if sc.chunk.status == "Dicabut"]
             active = [sc.chunk for sc in budget_chunks if sc.chunk.status != "Dicabut"]
             if superseded and active:
                 note = f"Catatan keberlakuan: {superseded[0].doc_id} berstatus Dicabut; acuan mutakhir merujuk pada {active[0].doc_id} ({active[0].valid_time or active[0].year})."
                 claims.insert(0, note)
-                parts.insert(0, note)
+                answer_lines.append(note)
+            elif primary.status == "Dicabut":
+                note = f"Catatan keberlakuan: {primary.doc_id} berstatus Dicabut dan dinyatakan tidak berlaku."
+                claims.insert(0, note)
+                answer_lines.append(note)
 
-        answer = " ".join(parts)
+        answer = "\n".join(answer_lines)
         return {
             "answer": answer,
             "claims": claims,
