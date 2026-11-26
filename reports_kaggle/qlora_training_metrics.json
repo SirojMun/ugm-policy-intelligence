@@ -1,0 +1,14 @@
+{
+  "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "metrics": {
+    "train_runtime": 993.1284,
+    "train_samples_per_second": 0.181,
+    "train_steps_per_second": 0.012,
+    "total_flos": 2160350519414784.0,
+    "train_loss": 1.3857335646947224,
+    "entropy": 1.36350736447743,
+    "mean_token_accuracy": 0.7462747352463859,
+    "num_tokens": 262191.0,
+    "epoch": 3.0
+  }
+}
