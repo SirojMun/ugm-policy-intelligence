@@ -145,12 +145,27 @@ def compute_agreement_and_adjudicate(
                 }
             )
 
+        resolved_verdict = (
+            resolution["resolved_verdict"]
+            if "resolved_verdict" in resolution and resolution["resolved_verdict"]
+            else (v1 if v1 == v2 else "unknown")
+        )
+        resolved_docs = (
+            resolution["resolved_docs"]
+            if "resolved_docs" in resolution
+            else (docs1 if docs1 == docs2 else sorted(set(docs1) | set(docs2)))
+        )
+        resolved_valid_time = (
+            resolution["resolved_valid_time"]
+            if "resolved_valid_time" in resolution
+            else (a1.get("annotator_valid_time") or a2.get("annotator_valid_time", ""))
+        )
         adjudicated_records.append(
             {
                 "query_id": qid,
-                "verdict": resolution.get("resolved_verdict") or (v1 if v1 == v2 else "unknown"),
-                "relevant_doc_ids": resolution.get("resolved_docs") or (docs1 if docs1 == docs2 else sorted(set(docs1) | set(docs2))),
-                "valid_time": resolution.get("resolved_valid_time") or a1.get("annotator_valid_time") or a2.get("annotator_valid_time", ""),
+                "verdict": resolved_verdict,
+                "relevant_doc_ids": resolved_docs,
+                "valid_time": resolved_valid_time,
                 "adjudicated": has_conflict,
                 "resolution_notes": resolution.get("resolution_notes", "unanimous_agreement" if not has_conflict else "PENDING_ADJUDICATION"),
             }

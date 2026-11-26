@@ -1,0 +1,9 @@
+{
+  "total_paired": 110,
+  "verdict_agreement_pct": 91.82,
+  "verdict_cohen_kappa": 0.8371,
+  "doc_set_agreement_pct": 86.36,
+  "disagreement_count": 15,
+  "disagreement_log": "data/annotation/disagreement_log.jsonl",
+  "adjudicated_labels": "data/annotation/adjudicated_labels.jsonl"
+}
