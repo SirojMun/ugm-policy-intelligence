@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from collections import defaultdict
@@ -9,6 +10,13 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+
+def _file_sha256(path: str | Path) -> str:
+    fp = Path(path)
+    if not fp.exists():
+        return ""
+    return hashlib.sha256(fp.read_bytes()).hexdigest()[:16]
 
 from src.agents_pipeline import PolicyExperimentRunner
 from src.chunking import chunk_corpus, compute_chunk_stats, load_corpus
@@ -115,12 +123,31 @@ def run_b0_b6_suite(
     configs = ("B0", "B1", "B2", "B3", "B4", "B5", "B6")
     results_summary: dict[str, Any] = {}
     run_manifests: list[dict[str, Any]] = []
+    corpus_hash = _file_sha256("corpus_clean.jsonl")
+    benchmark_hash = _file_sha256("data/benchmark/test_locked.jsonl")
+    prompt_key_map = {
+        "B0": "B0_direct",
+        "B1": "B1_structured",
+        "B2": "B2_naive_rag",
+        "B3": "B3_hybrid_rag",
+        "B4": "B4_adaptive_rag",
+        "B5": "B5_peft_rag",
+        "B6": "B6_guarded_agent",
+    }
 
     raw_outputs_path = out_path / "b0_b6_raw_outputs.jsonl"
     with raw_outputs_path.open("w", encoding="utf-8") as raw_fh:
         for cfg_id in configs:
             per_seed_summaries: list[dict[str, Any]] = []
             slice_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+            p_info = runner.prompts.get(prompt_key_map[cfg_id], {})
+            prompt_ver = f"{p_info.get('version', 'v1')}:{p_info.get('prompt_hash', '')}"
+            active_idx = (
+                runner.fixed_index
+                if cfg_id == "B2"
+                else (runner.heading_index if cfg_id == "B3" else runner.hierarchical_index)
+            )
+            ret_meta = active_idx.retrieval_metadata()
 
             for seed in seeds:
                 seed_rows: list[dict[str, Any]] = []
@@ -159,6 +186,7 @@ def run_b0_b6_suite(
                 per_seed_summaries.append(agg)
                 run_manifests.append(
                     {
+                        "run_id": f"{cfg_id}_seed_{seed}",
                         "config_id": cfg_id,
                         "seed": seed,
                         "model_id": (
@@ -166,8 +194,14 @@ def run_b0_b6_suite(
                             if (cfg_id == "B5" or (cfg_id == "B6" and runner.b6_parent_config == "B5"))
                             else runner.base_backend.model_id
                         ),
+                        "prompt_version": prompt_ver,
+                        "corpus_hash": corpus_hash,
+                        "benchmark_hash": benchmark_hash,
                         "b6_parent_config": runner.b6_parent_config if cfg_id == "B6" else None,
                         "index_version": runner.index_version,
+                        "retrieval_top_k": 5 if cfg_id in ("B2", "B3") else (0 if cfg_id in ("B0", "B1") else 8),
+                        "reranker_enabled": cfg_id not in ("B0", "B1", "B2"),
+                        **ret_meta,
                         "metrics": agg,
                     }
                 )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
 import re
 import time
@@ -27,6 +28,18 @@ def tokenize_id(text: str) -> list[str]:
 
 
 @dataclass
+class RetrievalConfig:
+    """Explicit retrieval backend and strict-mode experiment configuration."""
+
+    embedding_backend: str = "auto"
+    embedding_model: str | None = None
+    reranker_backend: str = "auto"
+    reranker_model: str | None = None
+    fallback_enabled: bool = True
+    strict_experiment_mode: bool = False
+
+
+@dataclass
 class RetrievalFilters:
     """Optional metadata filters for B3-B6 temporal/category-aware retrieval."""
 
@@ -47,14 +60,25 @@ class ScoredChunk:
     parent_text: str = ""
 
 
+def matches_year(chunk: ChunkRecord, year_min: int | None = None, year_max: int | None = None) -> bool:
+    """Enforce strict year bounds so unknown-year chunks never bypass temporal filters."""
+    if year_min is None and year_max is None:
+        return True
+    if chunk.year is None:
+        return False
+    if year_min is not None and chunk.year < year_min:
+        return False
+    if year_max is not None and chunk.year > year_max:
+        return False
+    return True
+
+
 def _matches_filters(chunk: ChunkRecord, filters: RetrievalFilters | None) -> bool:
     if filters is None:
         return True
     if filters.doc_type and chunk.doc_type.lower() != filters.doc_type.lower():
         return False
-    if filters.year_min is not None and chunk.year is not None and chunk.year < filters.year_min:
-        return False
-    if filters.year_max is not None and chunk.year is not None and chunk.year > filters.year_max:
+    if not matches_year(chunk, filters.year_min, filters.year_max):
         return False
     if filters.exclude_statuses and chunk.status in filters.exclude_statuses:
         return False
@@ -72,7 +96,27 @@ class PolicyRetrievalIndex:
         dense_model_name: str | None = None,
         reranker_model_name: str | None = None,
         lsa_dim: int = 256,
+        config: RetrievalConfig | None = None,
+        strict_mode: bool = False,
     ) -> None:
+        cfg = config or RetrievalConfig(
+            embedding_backend="sentence_transformers" if dense_model_name else "tfidf_svd_lsa",
+            embedding_model=dense_model_name,
+            reranker_backend="cross_encoder" if reranker_model_name else "lexical_cross_scorer",
+            reranker_model=reranker_model_name,
+            fallback_enabled=not strict_mode,
+            strict_experiment_mode=strict_mode,
+        )
+        eff_dense_model = dense_model_name or cfg.embedding_model
+        eff_rerank_model = reranker_model_name or cfg.reranker_model
+        self.strict_experiment_mode = bool(strict_mode or cfg.strict_experiment_mode or not cfg.fallback_enabled)
+        self.embedding_model = eff_dense_model or "tfidf_svd_lsa"
+        self.reranker_model = eff_rerank_model or "lexical_cross_scorer"
+        self.configured_dense_backend = "sentence_transformers" if eff_dense_model else "tfidf_svd_lsa"
+        self.configured_reranker_backend = "cross_encoder" if eff_rerank_model else "lexical_cross_scorer"
+        self.dense_fallback_used = False
+        self.reranker_fallback_used = False
+
         # Index leaf/searchable chunks (child or single), keeping parent lookup table for hierarchical expansion
         self.parent_map: dict[str, ChunkRecord] = {
             c.chunk_id: c for c in chunks if c.level == "parent"
@@ -85,21 +129,21 @@ class PolicyRetrievalIndex:
         tokenized_docs = [tokenize_id(f"{c.title} {c.section_path} {c.text}") for c in self.chunks]
         self.bm25 = BM25Okapi(tokenized_docs)
 
-        # 2. Build Dense index (SentenceTransformer when explicitly provided & available, else TF-IDF + SVD LSA)
+        # 2. Build Dense index (SentenceTransformer when requested; fail loudly in strict mode)
         self.dense_backend = "tfidf_svd_256"
         self._st_model = None
         self._tfidf = None
         self._svd = None
 
-        if dense_model_name:
+        if eff_dense_model:
             try:
                 import torch
                 from sentence_transformers import SentenceTransformer
 
                 device = "cuda" if torch.cuda.is_available() else "cpu"
-                cache_key = (f"st:{dense_model_name}", device)
+                cache_key = (f"st:{eff_dense_model}", device)
                 if cache_key not in _SHARED_ENCODER_CACHE:
-                    m = SentenceTransformer(dense_model_name, device=device)
+                    m = SentenceTransformer(eff_dense_model, device=device)
                     if device == "cuda":
                         m = m.half()
                     _SHARED_ENCODER_CACHE[cache_key] = m
@@ -109,9 +153,14 @@ class PolicyRetrievalIndex:
                     texts, batch_size=64, normalize_embeddings=True, show_progress_bar=False
                 )
                 self.dense_matrix = np.asarray(emb, dtype=np.float32)
-                self.dense_backend = f"sentence_transformers:{dense_model_name}"
-            except Exception:
+                self.dense_backend = f"sentence_transformers:{eff_dense_model}"
+            except Exception as exc:
                 self._st_model = None
+                if self.strict_experiment_mode:
+                    raise RuntimeError(
+                        f"Strict retrieval mode failed loading dense model '{eff_dense_model}': {exc}"
+                    ) from exc
+                self.dense_fallback_used = True
 
         if self._st_model is None:
             texts = [f"{c.title} {c.section_path} {c.text}" for c in self.chunks]
@@ -126,19 +175,39 @@ class PolicyRetrievalIndex:
         # 3. Optional Cross-Encoder Reranker
         self._cross_encoder = None
         self.reranker_backend = "lexical_cross_scorer"
-        if reranker_model_name:
+        if eff_rerank_model:
             try:
                 import torch
                 from sentence_transformers import CrossEncoder
 
                 device = "cuda" if torch.cuda.is_available() else "cpu"
-                cache_key = (f"ce:{reranker_model_name}", device)
+                cache_key = (f"ce:{eff_rerank_model}", device)
                 if cache_key not in _SHARED_ENCODER_CACHE:
-                    _SHARED_ENCODER_CACHE[cache_key] = CrossEncoder(reranker_model_name, device=device, max_length=512)
+                    _SHARED_ENCODER_CACHE[cache_key] = CrossEncoder(eff_rerank_model, device=device, max_length=512)
                 self._cross_encoder = _SHARED_ENCODER_CACHE[cache_key]
-                self.reranker_backend = f"cross_encoder:{reranker_model_name}"
-            except Exception:
+                self.reranker_backend = f"cross_encoder:{eff_rerank_model}"
+            except Exception as exc:
                 self._cross_encoder = None
+                if self.strict_experiment_mode:
+                    raise RuntimeError(
+                        f"Strict retrieval mode failed loading reranker '{eff_rerank_model}': {exc}"
+                    ) from exc
+                self.reranker_fallback_used = True
+
+        self.fallback_used = bool(self.dense_fallback_used or self.reranker_fallback_used)
+
+    def retrieval_metadata(self) -> dict[str, Any]:
+        """Expose configured vs actual retrieval backends and fallback provenance."""
+        return {
+            "configured_backend": self.configured_dense_backend,
+            "actual_backend": self.dense_backend,
+            "embedding_model": self.embedding_model,
+            "reranker_configured_backend": self.configured_reranker_backend,
+            "reranker_actual_backend": self.reranker_backend,
+            "reranker_model": self.reranker_model,
+            "fallback_used": self.fallback_used,
+            "strict_experiment_mode": self.strict_experiment_mode,
+        }
 
     def _encode_query(self, query: str) -> np.ndarray:
         if self._st_model is not None:
@@ -408,6 +477,7 @@ def evaluate_retrieval(
     p95_idx = min(len(lat_sorted) - 1, int(0.95 * len(lat_sorted)))
 
     return {
+        **index.retrieval_metadata(),
         "mode": mode,
         "dense_backend": index.dense_backend,
         "reranker_backend": index.reranker_backend,

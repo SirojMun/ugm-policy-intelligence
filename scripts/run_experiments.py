@@ -72,6 +72,7 @@ def main() -> None:
     parser.add_argument("--adapter-dir", default=None)
     parser.add_argument("--dense-model", default=None, help="SentenceTransformer model e.g. intfloat/multilingual-e5-small or BAAI/bge-m3")
     parser.add_argument("--reranker-model", default=None, help="CrossEncoder model e.g. BAAI/bge-reranker-base or BAAI/bge-reranker-v2-m3")
+    parser.add_argument("--strict", action="store_true", help="Fail loudly if configured dense/reranker model fails to load (no silent fallback).")
     parser.add_argument("--seeds", type=int, nargs="+", default=[101, 202, 303])
     parser.add_argument("--out-dir", default="reports")
     args = parser.parse_args()
@@ -86,9 +87,9 @@ def main() -> None:
     head_chunks = chunk_corpus(docs, "heading_aware")
     hier_chunks = chunk_corpus(docs, "hierarchical")
 
-    idx_fixed = PolicyRetrievalIndex(fixed_chunks, dense_model_name=args.dense_model, reranker_model_name=args.reranker_model)
-    idx_head = PolicyRetrievalIndex(head_chunks, dense_model_name=args.dense_model, reranker_model_name=args.reranker_model)
-    idx_hier = PolicyRetrievalIndex(hier_chunks, dense_model_name=args.dense_model, reranker_model_name=args.reranker_model)
+    idx_fixed = PolicyRetrievalIndex(fixed_chunks, dense_model_name=args.dense_model, reranker_model_name=args.reranker_model, strict_mode=args.strict)
+    idx_head = PolicyRetrievalIndex(head_chunks, dense_model_name=args.dense_model, reranker_model_name=args.reranker_model, strict_mode=args.strict)
+    idx_hier = PolicyRetrievalIndex(hier_chunks, dense_model_name=args.dense_model, reranker_model_name=args.reranker_model, strict_mode=args.strict)
 
     if args.backend == "hf":
         base_be: BaseLLMBackend = HuggingFaceCausalBackend(args.base_model, adapter_dir=None)

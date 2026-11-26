@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.factory import create_app
@@ -13,7 +14,7 @@ from src.benchmark import check_cross_split_leakage
 from src.chunking import chunk_corpus, compute_chunk_stats
 from src.human_eval import cohen_kappa, compute_agreement_and_adjudicate
 from src.red_team_runner import is_mitigated_safely
-from src.retrieval import PolicyRetrievalIndex, evaluate_retrieval
+from src.retrieval import PolicyRetrievalIndex, RetrievalConfig, RetrievalFilters, evaluate_retrieval
 from src.schemas import BenchmarkQuery, QrelEntry
 
 
@@ -79,6 +80,57 @@ def test_a1_chunking_strategies_and_a2_retrieval():
         res = evaluate_retrieval(idx, queries, qrels, mode=mode)  # type: ignore[arg-type]
         assert res["Recall@10"] == 1.0
         assert res["nDCG@10"] > 0.0
+        assert res["fallback_used"] is False
+
+
+def test_strict_retrieval_mode_and_strict_year_filter():
+    docs = _sample_docs()
+    docs.append(
+        {
+            "doc_id": "UGM_UNKNOWN_YEAR",
+            "title": "Pedoman Tanpa Tahun",
+            "doc_type": "Pedoman Akademik",
+            "year": None,
+            "valid_time": "",
+            "status": "Berlaku",
+            "version": "original",
+            "usage_rights": "Public Academic Regulation - UGM",
+            "related_regulations": [],
+            "text": "# Pedoman Tanpa Tahun\n\n### Pasal 1\n\nFasilitas dosen tetap berlaku umum.",
+        }
+    )
+    chunks = chunk_corpus(docs, "heading_aware")
+    idx = PolicyRetrievalIndex(chunks)
+
+    # Strict year filter must exclude unknown-year chunks (year=None)
+    hits = idx.search_bm25("fasilitas dosen", top_k=10, filters=RetrievalFilters(year_min=2025))
+    assert all(h.chunk.year is not None and h.chunk.year >= 2025 for h in hits)
+    assert all(h.chunk.doc_id != "UGM_UNKNOWN_YEAR" for h in hits)
+
+    # Non-strict mode marks fallback_used=True when requested neural model cannot load
+    non_strict_idx = PolicyRetrievalIndex(
+        chunks,
+        config=RetrievalConfig(
+            embedding_backend="sentence_transformers",
+            embedding_model="/nonexistent/local/model-path",
+            fallback_enabled=True,
+            strict_experiment_mode=False,
+        ),
+    )
+    assert non_strict_idx.retrieval_metadata()["fallback_used"] is True
+    assert non_strict_idx.retrieval_metadata()["actual_backend"].startswith("tfidf_svd_")
+
+    # Strict mode raises loudly instead of silently falling back
+    with pytest.raises(RuntimeError, match="Strict retrieval mode"):
+        PolicyRetrievalIndex(
+            chunks,
+            config=RetrievalConfig(
+                embedding_backend="sentence_transformers",
+                embedding_model="/nonexistent/local/model-path",
+                fallback_enabled=False,
+                strict_experiment_mode=True,
+            ),
+        )
 
 
 def test_benchmark_locked_manifest_and_zero_leakage():
