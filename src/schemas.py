@@ -46,7 +46,9 @@ class AtomicClaim(BaseModel):
     claim_id: str
     statement: str
     citations: list[str] = Field(default_factory=list)
-    verdict: Literal["supported", "unknown"] = "unknown"
+    verdict: Literal["supported", "contradicted", "unknown"] = "unknown"
+    confidence: float = 0.0
+    reason: str = ""
 
 
 class TraceSpan(BaseModel):

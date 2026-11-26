@@ -205,19 +205,157 @@ def _evidence_sufficiency_score(query: str, hits: list[ScoredChunk], mode: str =
     return min(1.0, 0.75 * coverage + 0.25 * min(1.0, top_score))
 
 
-def _verify_claims(claims: list[str], hits: list[ScoredChunk]) -> tuple[list[AtomicClaim], list[Citation]]:
-    """Verify each atomic claim against retrieved chunk text & build grounded citations."""
+NEGATION_TOKENS = {"tidak", "bukan", "belum", "tanpa", "dilarang", "batal", "dicabut", "menolak"}
+POSITIVE_MODAL_TOKENS = {"wajib", "harus", "boleh", "diperbolehkan", "berhak", "berlaku", "sah"}
+OPPOSITE_NORMATIVE_PAIRS = (
+    ({"wajib", "harus"}, {"dilarang", "bebas"}),
+    ({"boleh", "diperbolehkan"}, {"dilarang", "terlarang"}),
+    ({"berlaku", "sah"}, {"dicabut", "batal"}),
+)
+REG_REF_RE = re.compile(
+    r"((?:peraturan|keputusan)\s+[a-z\s]{2,40}?nomor\s+\d+\s+tahun\s+\d{4})",
+    re.IGNORECASE,
+)
+
+
+def _norm_reg_ref(ref: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"\bugm\b", "", ref, flags=re.IGNORECASE)).strip().lower()
+
+
+def _extract_repeal_relation(text: str, self_title: str = "") -> tuple[str, str] | None:
+    """Return (repealer_ref, repealed_ref) when text expresses an active/passive repeal."""
+    resolved = text
+    if self_title:
+        self_refs = REG_REF_RE.findall(self_title)
+        if self_refs:
+            resolved = re.sub(
+                r"\b(?:peraturan|keputusan)(?:\s+rektor|\s+mwa|\s+senat\s+akademik)?\s+ini\b",
+                self_refs[0],
+                resolved,
+                flags=re.IGNORECASE,
+            )
+    tl = re.sub(r"\bugm\b", "", resolved, flags=re.IGNORECASE)
+    m_act = re.search(
+        r"((?:peraturan|keputusan)\s+[a-z\s]{2,40}?nomor\s+\d+\s+tahun\s+\d{4}).{0,80}?\bmencabut\b.{0,80}?((?:peraturan|keputusan)\s+[a-z\s]{2,40}?nomor\s+\d+\s+tahun\s+\d{4})",
+        tl,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if m_act:
+        return _norm_reg_ref(m_act.group(1)), _norm_reg_ref(m_act.group(2))
+    m_pas = re.search(
+        r"((?:peraturan|keputusan)\s+[a-z\s]{2,40}?nomor\s+\d+\s+tahun\s+\d{4}).{0,100}?\bdicabut\b.{0,80}?\b(?:oleh|dengan)\b.{0,40}?((?:peraturan|keputusan)\s+[a-z\s]{2,40}?nomor\s+\d+\s+tahun\s+\d{4})",
+        tl,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if m_pas:
+        return _norm_reg_ref(m_pas.group(2)), _norm_reg_ref(m_pas.group(1))
+    # Handle clause: "<self_ref> mulai berlaku, <repealed_ref> dicabut"
+    m_impl = re.search(
+        r"((?:peraturan|keputusan)\s+[a-z\s]{2,40}?nomor\s+\d+\s+tahun\s+\d{4}).{0,80}?\bmulai\s+berlaku\b.{0,80}?((?:peraturan|keputusan)\s+[a-z\s]{2,40}?nomor\s+\d+\s+tahun\s+\d{4}).{0,40}?\bdicabut\b",
+        tl,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if m_impl:
+        return _norm_reg_ref(m_impl.group(1)), _norm_reg_ref(m_impl.group(2))
+    return None
+
+
+BOILERPLATE_STOP = {
+    "peraturan", "rektor", "keputusan", "nomor", "tahun", "pasal", "bab", "ayat",
+    "ugm", "ini", "tersebut", "pada", "saat", "dan", "yang", "dalam", "untuk",
+    "oleh", "dengan", "dinyatakan", "tentang", "mulai",
+}
+
+
+def _has_negation_conflict(claim_stmt: str, evidence_sentence: str) -> bool:
+    """Detect direct polarity inversion on high-overlap aligned clauses."""
+    c_toks = set(tokenize_id(claim_stmt))
+    e_toks = set(tokenize_id(evidence_sentence))
+    c_content = c_toks - NEGATION_TOKENS - BOILERPLATE_STOP
+    e_content = e_toks - NEGATION_TOKENS - BOILERPLATE_STOP
+    shared = c_content & e_content
+    if len(shared) < 3:
+        return False
+    jaccard = len(shared) / max(1, len(c_content | e_content))
+    if jaccard < 0.55:
+        return False
+
+    c_neg = len(c_toks & NEGATION_TOKENS)
+    e_neg = len(e_toks & NEGATION_TOKENS)
+    if (c_neg % 2) != (e_neg % 2) and (c_toks & POSITIVE_MODAL_TOKENS or e_toks & POSITIVE_MODAL_TOKENS):
+        return True
+
+    for pos_set, neg_set in OPPOSITE_NORMATIVE_PAIRS:
+        if (c_toks & pos_set and e_toks & neg_set) or (e_toks & pos_set and c_toks & neg_set):
+            return True
+    return False
+
+
+def _verify_claims(
+    claims: list[str],
+    hits: list[ScoredChunk],
+    query_context: str = "",
+) -> tuple[list[AtomicClaim], list[Citation]]:
+    """Verify atomic claims for support, negation contradiction, and temporal-repeal inversion."""
     atomic: list[AtomicClaim] = []
     citations_map: dict[str, Citation] = {}
 
+    # Pre-collect repeal directions & revoked doc statuses present in retrieved evidence
+    evidence_repeals: set[tuple[str, str]] = set()
+    revoked_refs: set[str] = set()
+    for sc in hits:
+        rel = _extract_repeal_relation(sc.chunk.text, self_title=sc.chunk.title)
+        if rel:
+            evidence_repeals.add(rel)
+        if sc.chunk.status == "Dicabut":
+            for m in REG_REF_RE.findall(sc.chunk.title):
+                revoked_refs.add(_norm_reg_ref(m))
+
     for idx, stmt in enumerate(claims, start=1):
         stmt_clean = PII_OUT_RE.sub("[REDACTED_PII]", stmt).strip()
+        stmt_body = re.sub(r"\[[^\]]+\]", "", stmt_clean).strip() or stmt_clean
+        stmt_norm = re.sub(r"\s+", " ", stmt_body.lower()).strip()
         s_toks = set(tokenize_id(stmt_clean))
         matched_cids: list[str] = []
+        contradiction_cids: list[str] = []
+        contradiction_reason = ""
+        best_overlap = 0.0
+
+        # Check explicit repeal direction inversion against retrieved corpus evidence
+        stmt_rel = _extract_repeal_relation(stmt_body) or _extract_repeal_relation(query_context)
+        if stmt_rel and (stmt_rel[1], stmt_rel[0]) in evidence_repeals and stmt_rel not in evidence_repeals:
+            contradiction_reason = "temporal_repeal_direction_inverted"
+
+        # Check if claim asserts an expressly Dicabut regulation is still valid
+        if not contradiction_reason and re.search(r"\bmasih\s+berlaku\b", stmt_body, re.IGNORECASE):
+            for m in REG_REF_RE.findall(stmt_body):
+                if _norm_reg_ref(m) in revoked_refs:
+                    contradiction_reason = "temporal_status_revoked"
+                    break
+
+        is_verbatim_quote = any(
+            stmt_norm and len(stmt_norm) >= 16 and stmt_norm in re.sub(r"\s+", " ", sc.chunk.text.lower())
+            for sc in hits
+        )
 
         for sc in hits:
-            ch_toks = set(tokenize_id(f"{sc.chunk.title} {sc.chunk.section_path} {sc.chunk.text}"))
+            body_text = re.sub(r"^\[[^\]]+\]\s*", "", sc.chunk.text)
+            if not is_verbatim_quote:
+                ev_sentences = [
+                    seg.strip()
+                    for seg in re.split(r"(?<=[.!?])\s+|\n+", body_text)
+                    if len(seg.strip()) >= 12 and not seg.strip().startswith("#")
+                ]
+                for ev_sent in ev_sentences:
+                    if _has_negation_conflict(stmt_body, ev_sent):
+                        contradiction_cids.append(sc.chunk.chunk_id)
+                        if not contradiction_reason:
+                            contradiction_reason = "polarity_negation_conflict"
+
+            full_ev = f"{sc.chunk.title} {sc.chunk.section_path} {sc.chunk.text}"
+            ch_toks = set(tokenize_id(full_ev))
             overlap = len(s_toks & ch_toks) / max(1, len(s_toks))
+            best_overlap = max(best_overlap, overlap)
             if overlap >= 0.35 or sc.chunk.doc_id in stmt_clean:
                 matched_cids.append(sc.chunk.chunk_id)
                 if sc.chunk.chunk_id not in citations_map:
@@ -231,13 +369,30 @@ def _verify_claims(claims: list[str], hits: list[ScoredChunk]) -> tuple[list[Ato
                         quote=re.sub(r"^\[[^\]]+\]\s*", "", sc.chunk.text)[:200].strip(),
                     )
 
-        verdict = "supported" if matched_cids else "unknown"
+        if contradiction_reason:
+            verdict: Literal["supported", "contradicted", "unknown"] = "contradicted"
+            ev_ids = (contradiction_cids or matched_cids)[:2]
+            conf = round(max(0.7, best_overlap), 4)
+            reason = contradiction_reason
+        elif matched_cids:
+            verdict = "supported"
+            ev_ids = matched_cids[:2]
+            conf = round(min(1.0, max(0.35, best_overlap)), 4)
+            reason = "evidence_aligned"
+        else:
+            verdict = "unknown"
+            ev_ids = []
+            conf = round(best_overlap, 4)
+            reason = "not_enough_evidence"
+
         atomic.append(
             AtomicClaim(
                 claim_id=f"C{idx}",
                 statement=stmt_clean,
-                citations=matched_cids[:2],
+                citations=ev_ids,
                 verdict=verdict,
+                confidence=conf,
+                reason=reason,
             )
         )
     return atomic, list(citations_map.values())
@@ -275,7 +430,7 @@ class PolicyExperimentRunner:
         ql = query.lower()
         if OUT_OF_SCOPE_ENTITY_RE.search(query) or PII_REQUEST_RE.search(query) or not tokenize_id(query):
             qtype = "no-evidence"
-        elif any(k in ql for k in ("dibanding", "perubahan", "dicabut", "diubah", "masih berlaku", "pertentangan", "antara ", "versi ")):
+        elif any(k in ql for k in ("dibanding", "perubahan", "dicabut", "mencabut", "pencabutan", "diubah", "mengubah", "membatalkan", "masih berlaku", "pertentangan", "antara ", "versi ")):
             qtype = "conflict"
         elif any(k in ql for k in ("gabungkan", "keterkaitan", "hubungan", "sekaligus", "pasal")):
             qtype = "multi-hop"
@@ -441,13 +596,27 @@ class PolicyExperimentRunner:
             flt = None if plan["query_type"] == "conflict" else RetrievalFilters(exclude_statuses=("Dicabut",))
 
             if config_id == "B6" and enable_tools:
+                search_args = {"query": query[:280], "exclude_dicabut": flt is not None, "top_k": min(10, eff_top_k)}
                 tool_res = self.tool_guard.validate_and_execute(
                     "search_corpus",
-                    {"query": query[:280], "exclude_dicabut": flt is not None, "top_k": min(10, eff_top_k)},
+                    search_args,
                     calls_so_far=0,
                 )
                 hits = tool_res.get("hits", []) if tool_res["allowed"] else []
-                trace.append(TraceSpan(step="tool:search_corpus", duration_ms=round((time.perf_counter() - t0) * 1000, 2), metadata={"allowed": tool_res["allowed"], "hits": len(hits)}))
+                trace.append(
+                    TraceSpan(
+                        step="tool:search_corpus",
+                        detail=tool_res.get("reason", "ok"),
+                        duration_ms=round((time.perf_counter() - t0) * 1000, 2),
+                        metadata={
+                            "tool": "search_corpus",
+                            "arguments": {"exclude_dicabut": search_args["exclude_dicabut"], "top_k": search_args["top_k"]},
+                            "allowed": tool_res["allowed"],
+                            "result_count": len(hits),
+                            "plan": plan["query_type"],
+                        },
+                    )
+                )
             else:
                 hits = self.hierarchical_index.retrieve(query, mode="hybrid_rerank", top_k=eff_top_k, filters=flt)
                 trace.append(TraceSpan(step="retrieve_initial", duration_ms=round((time.perf_counter() - t0) * 1000, 2), metadata={"hits": len(hits)}))
@@ -475,14 +644,40 @@ class PolicyExperimentRunner:
                 for did in top_dids:
                     if calls >= 4:
                         break
+                    t_args = {"doc_id": did, "as_of_date": as_of_date}
                     t_chk = self.tool_guard.validate_and_execute(
-                        "check_temporal_validity", {"doc_id": did, "as_of_date": as_of_date}, calls_so_far=calls
+                        "check_temporal_validity", t_args, calls_so_far=calls
                     )
                     calls += 1
-                    trace.append(TraceSpan(step="tool:check_temporal_validity", detail=did, metadata=t_chk.get("result") or {}))
+                    trace.append(
+                        TraceSpan(
+                            step="tool:check_temporal_validity",
+                            detail=did,
+                            metadata={
+                                "tool": "check_temporal_validity",
+                                "arguments": t_args,
+                                "allowed": t_chk["allowed"],
+                                "reason": t_chk.get("reason", ""),
+                                **(t_chk.get("result") or {}),
+                            },
+                        )
+                    )
                 if calls < 4 and top_dids:
-                    xref = self.tool_guard.validate_and_execute("get_cross_references", {"doc_id": top_dids[0]}, calls_so_far=calls)
-                    trace.append(TraceSpan(step="tool:get_cross_references", detail=top_dids[0], metadata={"refs": len((xref.get("result") or {}).get("related_regulations", []))}))
+                    x_args = {"doc_id": top_dids[0]}
+                    xref = self.tool_guard.validate_and_execute("get_cross_references", x_args, calls_so_far=calls)
+                    refs_list = (xref.get("result") or {}).get("related_regulations", [])
+                    trace.append(
+                        TraceSpan(
+                            step="tool:get_cross_references",
+                            detail=top_dids[0],
+                            metadata={
+                                "tool": "get_cross_references",
+                                "arguments": x_args,
+                                "allowed": xref["allowed"],
+                                "result_count": len(refs_list),
+                            },
+                        )
+                    )
 
             if suff < 0.25:
                 return PolicyResponse(
@@ -517,7 +712,27 @@ class PolicyExperimentRunner:
         # Claim verification + bounded repair (for B4/B5/B6 when enable_verifier=True)
         raw_claims = gen["claims"] or [gen["answer"]]
         if config_id in ("B4", "B5", "B6") and enable_verifier:
-            atomic_claims, citations = _verify_claims(raw_claims, sanitized_hits)
+            atomic_claims, citations = _verify_claims(raw_claims, sanitized_hits, query_context=query)
+            contradicted_claims = [c for c in atomic_claims if c.verdict == "contradicted"]
+            if contradicted_claims:
+                reasons = sorted({c.reason for c in contradicted_claims if c.reason})
+                return PolicyResponse(
+                    query_id=query_id,
+                    config_id=config_id,
+                    query=query,
+                    answer="Klaim ditolak oleh verifikator karena bertentangan (kontradiksi atau pembalikan arah pencabutan) dengan dokumen peraturan terverifikasi.",
+                    atomic_claims=atomic_claims,
+                    citations=citations,
+                    verdict="unknown",
+                    abstain_reason=f"claim_verifier_contradicted:{','.join(reasons) or 'conflict'}",
+                    latency_ms=round((time.perf_counter() - t_start) * 1000.0, 2),
+                    prompt_tokens_est=gen["prompt_tokens_est"],
+                    completion_tokens_est=gen["completion_tokens_est"],
+                    model_id=backend.model_id,
+                    prompt_version=prompt_ver,
+                    index_version=self.index_version,
+                    trace=trace + [TraceSpan(step="claim_verifier", detail="contradicted_abstained", metadata={"reasons": reasons})],
+                )
             supported_claims = [c for c in atomic_claims if c.verdict == "supported"]
             if not supported_claims:
                 return PolicyResponse(
@@ -543,7 +758,7 @@ class PolicyExperimentRunner:
             abstain_reason = ""
             trace.append(TraceSpan(step="claim_verifier", metadata={"supported": len(supported_claims), "total": len(atomic_claims)}))
         else:
-            atomic_claims, citations = _verify_claims(raw_claims, sanitized_hits)
+            atomic_claims, citations = _verify_claims(raw_claims, sanitized_hits, query_context=query)
             repaired_answer = gen["answer"]
             verdict = gen["verdict"]
             abstain_reason = gen["abstain_reason"]

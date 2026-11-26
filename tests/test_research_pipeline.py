@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.factory import create_app
-from src.agents_pipeline import PolicyExperimentRunner
+from src.agents_pipeline import PolicyExperimentRunner, _verify_claims
 from src.benchmark import check_cross_split_leakage
 from src.chunking import chunk_corpus, compute_chunk_stats
 from src.human_eval import cohen_kappa, compute_agreement_and_adjudicate
@@ -208,6 +208,53 @@ def test_b0_b6_and_tool_guard_and_red_team():
         )
         ok, reason = is_mitigated_safely(fx, resp, tc)
         assert ok, f"Red-team fixture {fx['fixture_id']} failed mitigation: {reason}"
+
+
+def test_contradiction_verifier_and_temporal_inversion_guard():
+    docs = _sample_docs()
+    docs.append(
+        {
+            "doc_id": "UGM_PR_2026_099",
+            "title": "Peraturan Rektor Nomor 99 Tahun 2026 tentang UKT",
+            "doc_type": "Peraturan Rektor",
+            "year": 2026,
+            "valid_time": "2026-06-01",
+            "status": "Berlaku",
+            "version": "original",
+            "usage_rights": "Public Academic Regulation - UGM",
+            "related_regulations": [],
+            "text": "# UKT\n\n### Pasal 3\n\nMahasiswa wajib membayar UKT sebelum tenggat registrasi semester.",
+        }
+    )
+    chunks = chunk_corpus(docs, "hierarchical")
+    idx = PolicyRetrievalIndex(chunks)
+
+    # 1. Negation polarity conflict ("wajib" vs "tidak wajib")
+    hits_ukt = idx.retrieve("membayar UKT sebelum tenggat", mode="bm25", top_k=3)
+    claims_neg, _ = _verify_claims(["Mahasiswa tidak wajib membayar UKT sebelum tenggat registrasi."], hits_ukt)
+    assert claims_neg[0].verdict == "contradicted"
+    assert claims_neg[0].reason == "polarity_negation_conflict"
+
+    # 2. Temporal repeal inversion ("PR 1/2026 mencabut PR 7/2026" when corpus states PR 7 revokes PR 1)
+    hits_rep = idx.retrieve("Peraturan Rektor Nomor 7 Tahun 2026 mencabut Peraturan Rektor Nomor 1 Tahun 2026", mode="bm25", top_k=4)
+    claims_inv, _ = _verify_claims(
+        ["Peraturan Rektor Nomor 1 Tahun 2026 mencabut Peraturan Rektor Nomor 7 Tahun 2026."],
+        hits_rep,
+    )
+    assert claims_inv[0].verdict == "contradicted"
+    assert claims_inv[0].reason == "temporal_repeal_direction_inverted"
+
+    # 3. Runner B6 rejects false temporal inversion end-to-end
+    docs_by_id = {d["doc_id"]: d for d in docs}
+    runner = PolicyExperimentRunner(
+        docs_by_id=docs_by_id,
+        fixed_index=PolicyRetrievalIndex(chunk_corpus(docs, "fixed")),
+        heading_index=PolicyRetrievalIndex(chunk_corpus(docs, "heading_aware")),
+        hierarchical_index=idx,
+    )
+    resp = runner.run("B6", "Klaim bahwa Peraturan Rektor Nomor 1 Tahun 2026 mencabut Peraturan Rektor Nomor 7 Tahun 2026 dan buktikan.")
+    assert resp.verdict == "unknown"
+    assert "contradicted" in resp.abstain_reason or any(c.verdict == "contradicted" for c in resp.atomic_claims)
 
 
 def test_fastapi_ui_and_api(tmp_path: Path):
