@@ -9,10 +9,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
-from src.agents_pipeline import PolicyExperimentRunner
+from src.agents_pipeline import PolicyExperimentRunner, resolve_as_of_date
 from src.chunking import chunk_corpus, load_corpus
 from src.eval_harness import load_jsonl_rows
 from src.llm_backend import BaseLLMBackend, ExtractivePolicyBackend, HuggingFaceCausalBackend
@@ -26,7 +26,7 @@ STATIC_INDEX_PATH = Path(__file__).parent / "static" / "index.html"
 class QueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=1000)
     config_id: Literal["B0", "B1", "B2", "B3", "B4", "B5", "B6"] = "B6"
-    as_of_date: str = Field(default="2026-11-25", pattern=r"^\d{4}-\d{2}-\d{2}$")
+    as_of_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     top_k: int = Field(default=5, ge=1, le=10)
     max_context_tokens: int = Field(default=4000, ge=500, le=8000)
 
@@ -36,8 +36,9 @@ def create_app(
     train_jsonl: str | Path = "data/benchmark/train.jsonl",
     backend_mode: str | None = None,
     trace_log_path: str | Path = TRACE_LOG_PATH,
+    allow_hf_fallback: bool = True,
 ) -> FastAPI:
-    app = FastAPI(title="UGM Academic Policy Intelligence API", version="1.0.0")
+    app = FastAPI(title="UGM Academic Policy Intelligence API", version="1.1.0")
     trace_file = Path(trace_log_path)
 
     docs = load_corpus(corpus_jsonl)
@@ -61,11 +62,21 @@ def create_app(
 
     base_be: BaseLLMBackend
     peft_be: BaseLLMBackend
+    actual_backend_type = "extractive"
+    backend_init_fallback = False
+    backend_fallback_reason = ""
+
     if mode == "hf":
         try:
             base_be = HuggingFaceCausalBackend(base_model, adapter_dir=None)
             peft_be = HuggingFaceCausalBackend(base_model, adapter_dir=adapter_dir) if adapter_dir else base_be
-        except Exception:
+            actual_backend_type = "huggingface"
+        except Exception as exc:
+            if not allow_hf_fallback:
+                raise
+            backend_init_fallback = True
+            backend_fallback_reason = f"{type(exc).__name__}: {exc}"
+            actual_backend_type = "extractive_fallback"
             base_be = ExtractivePolicyBackend()
             peft_be = ExtractivePolicyBackend(adapter_tag="qlora-fallback")
     else:
@@ -82,13 +93,26 @@ def create_app(
         train_examples=train_examples,
     )
 
+    def _runtime_metadata() -> dict[str, Any]:
+        return {
+            "backend": actual_backend_type,
+            "configured_backend": mode,
+            "model": base_be.model_id,
+            "adapter": peft_be.model_id,
+            "retrieval_backend": idx_hier.retrieval_metadata(),
+            "fallback_used": backend_init_fallback or idx_hier.fallback_used,
+            "fallback_reason": backend_fallback_reason,
+        }
+
     def _log_trace(req: QueryRequest, resp: PolicyResponse) -> None:
         trace_file.parent.mkdir(parents=True, exist_ok=True)
         entry = {
             "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "config_id": req.config_id,
             "query": req.query,
-            "as_of_date": req.as_of_date,
+            "as_of_date": resp.as_of_date or resolve_as_of_date(req.as_of_date),
+            "backend": resp.backend_type or actual_backend_type,
+            "retrieval_backend": resp.retrieval_backend or idx_hier.dense_backend,
             "verdict": resp.verdict,
             "valid_time": resp.valid_time,
             "abstain_reason": resp.abstain_reason,
@@ -115,18 +139,38 @@ def create_app(
             "dense_backend": idx_hier.dense_backend,
             "base_model": base_be.model_id,
             "peft_model": peft_be.model_id,
+            **_runtime_metadata(),
         }
+
+    @app.get("/ready")
+    def ready() -> JSONResponse:
+        is_ready = bool(docs and idx_hier.chunks)
+        payload = {
+            "status": "ready" if is_ready else "not_ready",
+            "ready": is_ready,
+            "corpus_documents": len(docs),
+            "hierarchical_searchable_chunks": len(idx_hier.chunks),
+            **_runtime_metadata(),
+        }
+        return JSONResponse(status_code=200 if is_ready else 503, content=payload)
 
     @app.post("/api/query", response_model=PolicyResponse)
     def query_policy(req: QueryRequest) -> PolicyResponse:
+        effective_date = resolve_as_of_date(req.as_of_date)
         try:
             resp = runner.run(
                 config_id=req.config_id,
                 query=req.query,
-                as_of_date=req.as_of_date,
+                as_of_date=effective_date,
                 top_k=req.top_k,
                 max_context_tokens=req.max_context_tokens,
             )
+            resp.backend_type = actual_backend_type
+            resp.retrieval_backend = idx_hier.dense_backend if req.config_id != "B2" else idx_fixed.dense_backend
+            resp.as_of_date = effective_date
+            if backend_init_fallback:
+                resp.fallback_used = True
+                resp.trace.append(TraceSpan(step="backend_fallback", detail=backend_fallback_reason[:160]))
         except Exception as exc:
             hits = idx_hier.retrieve(req.query, mode="bm25", top_k=3)
             resp = PolicyResponse(
@@ -137,6 +181,9 @@ def create_app(
                 else f"Fallback BM25 ({hits[0].chunk.doc_id}): {hits[0].chunk.text[:280]}",
                 verdict="unknown",
                 abstain_reason=f"fallback_triggered:{type(exc).__name__}",
+                backend_type="bm25_error_fallback",
+                retrieval_backend="bm25",
+                as_of_date=effective_date,
                 fallback_used=True,
                 trace=[TraceSpan(step="fallback_handler", detail=str(exc))],
             )

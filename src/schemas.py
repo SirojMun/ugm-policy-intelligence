@@ -76,8 +76,11 @@ class PolicyResponse(BaseModel):
     prompt_tokens_est: int = 0
     completion_tokens_est: int = 0
     model_id: str = ""
+    backend_type: str = ""
+    retrieval_backend: str = ""
     prompt_version: str = ""
     index_version: str = ""
+    as_of_date: str = ""
     fallback_used: bool = False
     trace: list[TraceSpan] = Field(default_factory=list)
 

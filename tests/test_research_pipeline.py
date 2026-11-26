@@ -269,7 +269,7 @@ def test_contradiction_verifier_and_temporal_inversion_guard():
     assert "contradicted" in resp.abstain_reason or any(c.verdict == "contradicted" for c in resp.atomic_claims)
 
 
-def test_fastapi_ui_and_api(tmp_path: Path):
+def test_fastapi_ui_and_api(tmp_path: Path, monkeypatch):
     sample_corpus = tmp_path / "corpus.jsonl"
     sample_corpus.write_text("\n".join(json.dumps(d) for d in _sample_docs()) + "\n", encoding="utf-8")
     app = create_app(
@@ -283,10 +283,33 @@ def test_fastapi_ui_and_api(tmp_path: Path):
     assert client.get("/").status_code == 200
     h = client.get("/health").json()
     assert h["status"] == "ok" and h["corpus_documents"] == 2
+    assert h["backend"] == "extractive"
+    assert "retrieval_backend" in h
 
+    rdy = client.get("/ready")
+    assert rdy.status_code == 200
+    assert rdy.json()["ready"] is True
+
+    # Dynamic UTC as_of_date resolution when omitted + runtime metadata returned
     q_res = client.post("/api/query", json={"query": "Apa fasilitas dosen tetap menurut Peraturan Rektor Nomor 7 Tahun 2026?", "config_id": "B6"})
     assert q_res.status_code == 200
     body = q_res.json()
     assert body["verdict"] == "supported"
     assert body["config_id"] == "B6"
+    assert body["backend_type"] == "extractive"
+    assert len(body["as_of_date"]) == 10
     assert len(body["citations"]) >= 1
+
+    # Explicit fallback reporting when HF model fails to load
+    monkeypatch.setenv("UGM_BASE_MODEL", "/nonexistent/hf-model")
+    fb_app = create_app(
+        corpus_jsonl=sample_corpus,
+        train_jsonl="data/benchmark/train.jsonl",
+        backend_mode="hf",
+        trace_log_path=tmp_path / "fb_traces.jsonl",
+    )
+    fb_client = TestClient(fb_app)
+    assert fb_client.get("/ready").json()["fallback_used"] is True
+    fb_body = fb_client.post("/api/query", json={"query": "Apa fasilitas dosen tetap?", "config_id": "B6"}).json()
+    assert fb_body["fallback_used"] is True
+    assert fb_body["backend_type"] == "extractive_fallback"

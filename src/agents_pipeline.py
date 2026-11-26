@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
@@ -398,6 +399,13 @@ def _verify_claims(
     return atomic, list(citations_map.values())
 
 
+def resolve_as_of_date(request_date: str | None = None) -> str:
+    """Resolve explicit historical evaluation date or default to current UTC date."""
+    if request_date:
+        return request_date
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
 class PolicyExperimentRunner:
     """Runs any of B0-B6 consistently with tracing, budgets, and fallback."""
 
@@ -450,7 +458,7 @@ class PolicyExperimentRunner:
         config_id: Literal["B0", "B1", "B2", "B3", "B4", "B5", "B6"],
         query: str,
         query_id: str = "",
-        as_of_date: str = "2026-11-25",
+        as_of_date: str | None = None,
         seed: int = 42,
         max_context_tokens: int = 4000,
         enable_verifier: bool = True,
@@ -460,7 +468,8 @@ class PolicyExperimentRunner:
         extra_injected_context: str = "",
     ) -> PolicyResponse:
         t_start = time.perf_counter()
-        trace: list[TraceSpan] = []
+        resolved_date = resolve_as_of_date(as_of_date)
+        trace: list[TraceSpan] = [TraceSpan(step="resolve_as_of_date", detail=resolved_date)]
 
         prompt_key_map = {
             "B0": "B0_direct",
@@ -644,7 +653,7 @@ class PolicyExperimentRunner:
                 for did in top_dids:
                     if calls >= 4:
                         break
-                    t_args = {"doc_id": did, "as_of_date": as_of_date}
+                    t_args = {"doc_id": did, "as_of_date": resolved_date}
                     t_chk = self.tool_guard.validate_and_execute(
                         "check_temporal_validity", t_args, calls_so_far=calls
                     )
