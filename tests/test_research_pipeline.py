@@ -313,3 +313,15 @@ def test_fastapi_ui_and_api(tmp_path: Path, monkeypatch):
     fb_body = fb_client.post("/api/query", json={"query": "Apa fasilitas dosen tetap?", "config_id": "B6"}).json()
     assert fb_body["fallback_used"] is True
     assert fb_body["backend_type"] == "extractive_fallback"
+
+
+def test_export_analysis_reports(tmp_path: Path):
+    from scripts.export_analysis_reports import export_analysis
+
+    src_dir = Path("reports_kaggle") if Path("reports_kaggle/b0_b6_summary.json").exists() else Path("reports")
+    out_dir = export_analysis(src_dir, out_subdir=str(tmp_path / "analysis_test"))
+    assert (out_dir / "comparison.csv").exists()
+    assert (out_dir / "comparison_by_slice.csv").exists()
+    assert (out_dir / "ablation.csv").exists()
+    assert (out_dir / "red_team.csv").exists()
+    assert (out_dir / "final_report.md").exists()
