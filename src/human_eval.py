@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import json
+import random
 from pathlib import Path
 from typing import Any
 
 from src.retrieval import PolicyRetrievalIndex
+
+RELEVANCE_RUBRIC = {
+    "0": "tidak_relevan",
+    "1": "relevansi_parsial",
+    "2": "relevan",
+    "3": "sangat_relevan_menjawab_langsung",
+}
 
 
 def cohen_kappa(labels_a: list[str], labels_b: list[str]) -> float:
@@ -26,36 +34,60 @@ def export_blind_annotation_packets(
     queries_jsonl: str | Path,
     index: PolicyRetrievalIndex,
     out_dir: str | Path = "data/annotation",
-    top_k_candidates: int = 5,
+    top_k_candidates: int = 3,
+    random_samples_per_query: int = 2,
+    seed: int = 42,
 ) -> dict[str, str]:
-    """Export blind annotation worksheets for 2 human annotators (zero gold answer leakage)."""
+    """Export blind annotation worksheets using multi-retriever pooling + random negatives (0-3 rubric)."""
     out_path = Path(out_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
     queries = [json.loads(l) for l in Path(queries_jsonl).read_text(encoding="utf-8").splitlines() if l.strip()]
     blind_rows: list[dict[str, Any]] = []
+    rng = random.Random(seed)
+    all_chunks = index.chunks
 
     for q in queries:
-        hits = index.retrieve(q["query"], mode="hybrid_rerank", top_k=top_k_candidates)
+        pooled_by_cid: dict[str, Any] = {}
+        for mode in ("bm25", "dense", "hybrid", "hybrid_rerank"):
+            for h in index.retrieve(q["query"], mode=mode, top_k=top_k_candidates):  # type: ignore[arg-type]
+                if h.chunk.chunk_id not in pooled_by_cid:
+                    pooled_by_cid[h.chunk.chunk_id] = h.chunk
+
+        # Add unretrieved corpus samples so annotators are not limited to top-k system biases
+        if all_chunks and random_samples_per_query > 0:
+            rand_pool = rng.sample(all_chunks, k=min(len(all_chunks), random_samples_per_query * 2))
+            added = 0
+            for ch in rand_pool:
+                if ch.chunk_id not in pooled_by_cid:
+                    pooled_by_cid[ch.chunk_id] = ch
+                    added += 1
+                    if added >= random_samples_per_query:
+                        break
+
+        pooled_chunks = list(pooled_by_cid.values())
+        rng.shuffle(pooled_chunks)  # Blind order hides which retriever surfaced each passage
         candidates = [
             {
-                "doc_id": h.chunk.doc_id,
-                "chunk_id": h.chunk.chunk_id,
-                "pasal": h.chunk.pasal,
-                "valid_time": h.chunk.valid_time,
-                "status": h.chunk.status,
-                "excerpt": h.chunk.text[:450],
+                "doc_id": ch.doc_id,
+                "chunk_id": ch.chunk_id,
+                "pasal": ch.pasal,
+                "valid_time": ch.valid_time,
+                "status": ch.status,
+                "excerpt": ch.text[:450],
             }
-            for h in hits
+            for ch in pooled_chunks
         ]
         blind_rows.append(
             {
                 "query_id": q["query_id"],
                 "query": q["query"],
                 "as_of_date": q.get("as_of_date", "2026-11-25"),
+                "relevance_rubric": RELEVANCE_RUBRIC,
                 "candidate_passages": candidates,
                 "annotator_verdict": "",  # supported | unknown
                 "annotator_relevant_doc_ids": [],
+                "annotator_relevance_scores": {},  # optional chunk_id -> 0..3
                 "annotator_valid_time": "",
                 "annotator_notes": "",
             }

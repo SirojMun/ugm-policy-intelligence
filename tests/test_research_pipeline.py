@@ -12,7 +12,7 @@ from app.factory import create_app
 from src.agents_pipeline import PolicyExperimentRunner, _verify_claims
 from src.benchmark import check_cross_split_leakage
 from src.chunking import chunk_corpus, compute_chunk_stats
-from src.human_eval import cohen_kappa, compute_agreement_and_adjudicate
+from src.human_eval import cohen_kappa, compute_agreement_and_adjudicate, export_blind_annotation_packets
 from src.red_team_runner import is_mitigated_safely
 from src.retrieval import PolicyRetrievalIndex, RetrievalConfig, RetrievalFilters, evaluate_retrieval
 from src.schemas import BenchmarkQuery, QrelEntry
@@ -165,6 +165,18 @@ def test_human_eval_kappa_and_adjudication(tmp_path: Path):
     summary = compute_agreement_and_adjudicate(a1, a2, adj, out_dir=tmp_path)
     assert summary["disagreement_count"] == 1
     assert summary["verdict_agreement_pct"] == 50.0
+
+    # Multi-retriever pooling + random negative corpus sample + 0-3 rubric
+    docs = _sample_docs()
+    idx = PolicyRetrievalIndex(chunk_corpus(docs, "hierarchical"))
+    q_path = tmp_path / "blind_queries.jsonl"
+    q_path.write_text(json.dumps({"query_id": "Q1", "query": "fasilitas dosen tetap"}) + "\n", encoding="utf-8")
+    exported = export_blind_annotation_packets(q_path, idx, out_dir=tmp_path, top_k_candidates=2, random_samples_per_query=2)
+    row = json.loads(Path(exported["annotator_1"]).read_text(encoding="utf-8").splitlines()[0])
+    cids = [c["chunk_id"] for c in row["candidate_passages"]]
+    assert len(cids) == len(set(cids))
+    assert "3" in row["relevance_rubric"]
+    assert "annotator_relevance_scores" in row
 
 
 def test_b0_b6_and_tool_guard_and_red_team():

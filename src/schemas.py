@@ -107,6 +107,6 @@ class QrelEntry(BaseModel):
     doc_id: str
     chunk_id: str
     pasal: str = ""
-    relevance: int = Field(ge=0, le=2)
+    relevance: int = Field(ge=0, le=3)
     doc_version: str = "original"
     annotation_rule: str = "exact_source_passage_match"
