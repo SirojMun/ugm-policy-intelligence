@@ -186,7 +186,7 @@ def chunk_hierarchical(
     c_seq = 0
     for group_key, sec_list in grouped:
         parent_text_full = "\n\n".join(
-            f"{('### ' + s['h3'] + '\n') if s['h3'] else ''}{s['body']}" for s in sec_list
+            f"{('### ' + s['h3'] + chr(10)) if s['h3'] else ''}{s['body']}" for s in sec_list
         ).strip()
         parent_windows = _split_words_window(parent_text_full.split(), max_words=parent_max_words, overlap_words=60)
         parent_ids: list[str] = []
